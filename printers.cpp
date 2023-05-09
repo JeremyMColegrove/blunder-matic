@@ -9,7 +9,7 @@ void print_bitboard(uint64_t bitboard) {
             std::cout << std::endl;
             std::cout << 8-(i/8) << "\t\t";
         }
-        if (is_bit_set(bitboard, i)) std::cout << "1  ";
+        if (get_bit(bitboard, i)) std::cout << "1  ";
         else std::cout << "0  ";
     }
     std::cout << "\n\n\t\ta  b  c  d  e  f  g  h" << std::endl;
@@ -71,7 +71,7 @@ void print_board(ChessBoard& board) {
             bool pieceFound = false;
 
             for (int i = 0; i < 12; ++i) {
-                if (is_bit_set(board.bitboards[i], position)) {
+                if (get_bit(board.bitboards[i], position)) {
                     std::cout << ascii_pieces[i] << " ";
                     pieceFound = true;
                     break;

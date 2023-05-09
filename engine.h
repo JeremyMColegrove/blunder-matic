@@ -33,16 +33,15 @@ const int castling_rights[64] = {
             15, 15, 15, 15, 15, 15, 15, 15,
             13, 15, 15, 15, 12, 15, 15, 14
     };
-    
+
 //Encode the pieces here as they would be output to the screen
 enum {P, N, B, R, Q, K, p, n, b, r, q, k, no_piece};
 
-
-
-// int char_pieces[128];
+enum {white, black, both};
 
 struct ChessBoard {
     U64 bitboards[12];
+    U64 occupancies[3];
     bool white_to_move;
     uint8_t castling_rights; // 1 = white kingside, 2 = white queenside, 4 = black kingside, 8 = black queenside
     int en_passant_square;

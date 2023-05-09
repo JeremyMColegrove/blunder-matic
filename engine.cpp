@@ -1,11 +1,36 @@
 #include "engine.h"
 #include "utils.h"
 #include "printers.h"
+#include "moves.h"
+
 
  int char_pieces[128] = {
         ['P'] = P, ['N'] = N, ['B'] = B, ['R'] = R, ['Q'] = Q, ['K'] = K,
         ['p'] = p, ['n'] = n, ['b'] = b, ['r'] = r, ['q'] = q, ['k'] = k,
     };
+
+void init_occupancies(ChessBoard &board) {
+    board.occupancies[white] = 0ULL;
+    board.occupancies[black] = 0ULL;
+    board.occupancies[both] = 0ULL;
+
+    for (int i = 0; i < 12; i++) {
+        U64 bitboard = board.bitboards[i];
+        while (bitboard) {
+            int square = __builtin_ctzll(bitboard);
+
+            if (i < 6) {
+                set_bit(board.occupancies[white], square);
+            } else {
+                set_bit(board.occupancies[black], square);
+            }
+
+            pop_lsb(bitboard);
+        }   
+    }
+
+    board.occupancies[both] = board.occupancies[white] | board.occupancies[black];
+}
 
 ChessBoard create_board_from_fen(const std::string& fen) {
     ChessBoard board = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -59,6 +84,8 @@ ChessBoard create_board_from_fen(const std::string& fen) {
     // Parse full-move counter
     fenStream >> board.full_move_counter;
 
+    init_occupancies(board);
+
     return board;
 }
 
@@ -74,12 +101,12 @@ void make_move(ChessBoard &board, uint64_t move) {
 
     
     // Clear the moving piece from the origin square
-    clear_bit(board.bitboards[piece], from_square);
+    pop_bit(board.bitboards[piece], from_square);
 
 
     // Remove the captured piece if any
     if (captured_piece != no_piece) {
-        clear_bit(board.bitboards[captured_piece], to_square);
+        pop_bit(board.bitboards[captured_piece], to_square);
     }
 
     
@@ -89,9 +116,9 @@ void make_move(ChessBoard &board, uint64_t move) {
     } else if (enpassant) {
         // En passant special move
         if (board.white_to_move) {
-            clear_bit(board.bitboards[p], to_square + 8);
+            pop_bit(board.bitboards[p], to_square + 8);
         } else {
-            clear_bit(board.bitboards[P], to_square - 8);
+            pop_bit(board.bitboards[P], to_square - 8);
         }
         // Set the moving piece in the destination square
         set_bit(board.bitboards[piece], to_square);
@@ -102,8 +129,6 @@ void make_move(ChessBoard &board, uint64_t move) {
 
     // enpassant
     if (double_push) {
-                std::cout << "Double push is true" << std::endl;
-
         if (board.white_to_move) {
             board.en_passant_square = to_square - 8;
         } else {
@@ -115,22 +140,21 @@ void make_move(ChessBoard &board, uint64_t move) {
 
     // Update castling rights
     if (castling) {
-        std::cout << "Castling is true" << std::endl;
             switch (to_square) {
                 case g1:
-                    clear_bit(board.bitboards[R], h1);
+                    pop_bit(board.bitboards[R], h1);
                     set_bit(board.bitboards[R], f1);
                     break;
                 case c1:
-                    clear_bit(board.bitboards[R], a1);
+                    pop_bit(board.bitboards[R], a1);
                     set_bit(board.bitboards[R], d1);
                     break;
                 case g8:
-                    clear_bit(board.bitboards[r], h8);
+                    pop_bit(board.bitboards[r], h8);
                     set_bit(board.bitboards[r], f8);
                     break;
                 case c8:
-                    clear_bit(board.bitboards[r], a8);
+                    pop_bit(board.bitboards[r], a8);
                     set_bit(board.bitboards[r], d8);
                     break;
             }
@@ -146,15 +170,16 @@ void make_move(ChessBoard &board, uint64_t move) {
 
 
 int main() {
-    ChessBoard board = create_board_from_fen("r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R b KQkq - - 0 1");
+    ChessBoard board = create_board_from_fen("r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - - 0 1");
 
-    uint64_t move = encode_move(e8, f8, k, no_piece, no_piece, 0, 0, 0);
+    init_moves();
+    // uint64_t move = encode_move(h8, g8, r, no_piece, no_piece, 0, 0, 0);
 
-    print_move(move);
+    // print_move(move);
 
-    make_move(board, move);
+    // make_move(board, move);
 
-    print_board(board);
+    // print_board(board);
 
     return 0;
 }

@@ -3,6 +3,16 @@
 
 #include "engine.h"
 
+// pops bit at square
+#define pop_bit(x, square) (x &= ~(1ULL << (square)))
+// is faster than pop_bit
+#define pop_lsb(bitboard) (bitboard &= (bitboard-1))
+//Returns the bit on the square
+#define get_bit(bitboard, square) ((bitboard) & (1ULL << (square)))
+//Turns the bit at square to 1
+#define set_bit(bitboard, square) ((bitboard) |= (1ULL << (square)))
+
+
 constexpr uint64_t MOVE_FROM_SHIFT = 0;
 constexpr uint64_t MOVE_TO_SHIFT = 6;
 constexpr uint64_t PIECE_TYPE_SHIFT = 12;
@@ -30,12 +40,6 @@ int decode_castling(uint64_t move);
 
 bool decode_double_push_flag(uint64_t move);
 
-// Helper function to check if a bit is set at a given position
-bool is_bit_set(uint64_t bitboard, int position);
-
-void set_bit(U64 &bitboard, int position);
-
-void clear_bit(U64 &bitboard, int position);
 
 
 #endif

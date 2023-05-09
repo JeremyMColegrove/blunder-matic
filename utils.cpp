@@ -1,6 +1,7 @@
 #include "utils.h"
 
 
+
 uint64_t encode_move(int from, int to, int piece_type, int captured_piece, int promotion_piece, bool en_passant, int castling, bool double_push) {
     return (static_cast<uint64_t>(from) << MOVE_FROM_SHIFT) |
            (static_cast<uint64_t>(to) << MOVE_TO_SHIFT) |
@@ -42,17 +43,4 @@ int decode_castling(uint64_t move) {
 
 bool decode_double_push_flag(uint64_t move) {
     return (move >> DOUBLE_PUSH_SHIFT) & 0x1;
-}
-
-// Helper function to check if a bit is set at a given position
-bool is_bit_set(uint64_t bitboard, int position) {
-    return (bitboard & (1ULL << position)) != 0;
-}
-
-void set_bit(U64 &bitboard, int position) {
-    bitboard |= (1ull << position);
-}
-
-void clear_bit(U64 &bitboard, int position) {
-    bitboard &= ~(1ull << position);
 }
