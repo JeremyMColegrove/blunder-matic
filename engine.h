@@ -23,19 +23,18 @@ enum {
     a1, b1, c1, d1, e1, f1, g1, h1, no_square
 };
 
+//Encode the pieces here as they would be output to the screen
+enum {P, N, B, R, Q, K, p, n, b, r, q, k, no_piece};
 
-struct Bitboard {
-    U64 pawns;
-    U64 knights;
-    U64 bishops;
-    U64 rooks;
-    U64 queens;
-    U64 kings;
-};
+
+
+int char_pieces[128] = {
+        ['P'] = P, ['N'] = N, ['B'] = B, ['R'] = R, ['Q'] = Q, ['K'] = K,
+        ['p'] = p, ['n'] = n, ['b'] = b, ['r'] = r, ['q'] = q, ['k'] = k,
+    };
 
 struct ChessBoard {
-    Bitboard white_pieces;
-    Bitboard black_pieces;
+    U64 bitboards[12];
     bool white_to_move;
     uint8_t castling_rights; // 1 = white kingside, 2 = white queenside, 4 = black kingside, 8 = black queenside
     int en_passant_square;
@@ -43,15 +42,5 @@ struct ChessBoard {
     unsigned full_move_counter;
 };
 
-enum MoveFlag {
-    NORMAL = 0,
-    PROMOTION_QUEEN = 1,
-    PROMOTION_ROOK = 2,
-    PROMOTION_BISHOP = 3,
-    PROMOTION_KNIGHT = 4,
-    EN_PASSANT = 5,
-    KING_SIDE_CASTLING = 6,
-    QUEEN_SIDE_CASTLING = 7
-};
 
 #endif
