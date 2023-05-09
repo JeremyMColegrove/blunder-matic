@@ -23,15 +23,23 @@ enum {
     a1, b1, c1, d1, e1, f1, g1, h1, no_square
 };
 
+const int castling_rights[64] = {
+            7, 15, 15, 15,  3, 15, 15, 11,
+            15, 15, 15, 15, 15, 15, 15, 15,
+            15, 15, 15, 15, 15, 15, 15, 15,
+            15, 15, 15, 15, 15, 15, 15, 15,
+            15, 15, 15, 15, 15, 15, 15, 15,
+            15, 15, 15, 15, 15, 15, 15, 15,
+            15, 15, 15, 15, 15, 15, 15, 15,
+            13, 15, 15, 15, 12, 15, 15, 14
+    };
+    
 //Encode the pieces here as they would be output to the screen
 enum {P, N, B, R, Q, K, p, n, b, r, q, k, no_piece};
 
 
 
-int char_pieces[128] = {
-        ['P'] = P, ['N'] = N, ['B'] = B, ['R'] = R, ['Q'] = Q, ['K'] = K,
-        ['p'] = p, ['n'] = n, ['b'] = b, ['r'] = r, ['q'] = q, ['k'] = k,
-    };
+// int char_pieces[128];
 
 struct ChessBoard {
     U64 bitboards[12];

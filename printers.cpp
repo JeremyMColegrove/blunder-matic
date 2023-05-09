@@ -1,5 +1,7 @@
 #include "printers.h"
 
+const char ascii_pieces[] = "PNBRQKpnbrqk-";
+
 void print_bitboard(uint64_t bitboard) {
     for (int i=0; i<64; i++)
     {
@@ -22,22 +24,37 @@ void print_move(uint64_t move) {
     int castling = decode_castling(move);
     int enpassant = decode_en_passant_flag(move);
     int promotion_piece = decode_promotion_piece(move);
+    bool double_push = decode_double_push_flag(move);
+    
+    std::cout << captured_piece << std::endl;
+    printf("to\tfrom\tpiece\tcaptured\tpromoted\tenp\tcastling\tdouble_push\n");
+    printf("%c%c\t%c%c\t%c\t%c\t\t%c\t\t%d\t%d\t\t%d\n", 
+        static_cast<char>(from_square % 8 + 'a'),
+        static_cast<char>(8 - from_square / 8 + '0'),
+        static_cast<char>(to_square % 8 + 'a'),
+        static_cast<char>(8 - to_square / 8 + '0'),
+        ascii_pieces[piece],
+        ascii_pieces[captured_piece],
+        ascii_pieces[promotion_piece],
+        enpassant,
+        castling,
+        double_push);
 
-    std::cout << "Move: "
-              << static_cast<char>(from_square % 8 + 'a')
-              << static_cast<char>(8 - from_square / 8 + '0')
-              << "\t"
-              << static_cast<char>(to_square % 8 + 'a')
-              << static_cast<char>(8 - to_square / 8 + '0')
-              << "\t"
-              << piece
-              << "\t"
-              << captured_piece
-              << "\t"
-              << enpassant
-              << "\t"
-              << promotion_piece
-              << std::endl;
+    // std::cout << "Move: "
+    //           << static_cast<char>(from_square % 8 + 'a')
+    //           << static_cast<char>(8 - from_square / 8 + '0')
+    //           << "\t"
+    //           << static_cast<char>(to_square % 8 + 'a')
+    //           << static_cast<char>(8 - to_square / 8 + '0')
+    //           << "\t"
+    //           << piece
+    //           << "\t"
+    //           << captured_piece
+    //           << "\t"
+    //           << enpassant
+    //           << "\t"
+    //           << promotion_piece
+    //           << std::endl;
 }
 
 // Function to print the chess board
@@ -55,7 +72,7 @@ void print_board(ChessBoard& board) {
 
             for (int i = 0; i < 12; ++i) {
                 if (is_bit_set(board.bitboards[i], position)) {
-                    std::cout << pieceSymbols[i] << " ";
+                    std::cout << ascii_pieces[i] << " ";
                     pieceFound = true;
                     break;
                 }
@@ -87,7 +104,7 @@ void print_board(ChessBoard& board) {
     if (board.en_passant_square != -1) {
         int file = board.en_passant_square % 8;
         int rank = board.en_passant_square / 8;
-        std::cout << static_cast<char>('a' + file) << (rank + 1);
+        std::cout << static_cast<char>('a' + file) << (rank);
     } else {
         std::cout << "-";
     }

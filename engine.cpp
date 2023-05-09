@@ -2,6 +2,11 @@
 #include "utils.h"
 #include "printers.h"
 
+ int char_pieces[128] = {
+        ['P'] = P, ['N'] = N, ['B'] = B, ['R'] = R, ['Q'] = Q, ['K'] = K,
+        ['p'] = p, ['n'] = n, ['b'] = b, ['r'] = r, ['q'] = q, ['k'] = k,
+    };
+
 ChessBoard create_board_from_fen(const std::string& fen) {
     ChessBoard board = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     std::istringstream fenStream(fen);
@@ -42,10 +47,10 @@ ChessBoard create_board_from_fen(const std::string& fen) {
     fenStream >> enPassant;
     if (enPassant != "-") {
         int file = enPassant[0] - 'a';
-        int rank = enPassant[1] - '1';
+        int rank = enPassant[1] - '0';
         board.en_passant_square = rank * 8 + file;
     } else {
-        board.en_passant_square = -1;
+        board.en_passant_square = no_square;
     }
 
     // Parse 50-move counter
@@ -65,7 +70,9 @@ void make_move(ChessBoard &board, uint64_t move) {
     int castling = decode_castling(move);
     int enpassant = decode_en_passant_flag(move);
     int promotion_piece = decode_promotion_piece(move);
+    bool double_push = decode_double_push_flag(move);
 
+    
     // Clear the moving piece from the origin square
     clear_bit(board.bitboards[piece], from_square);
 
@@ -77,13 +84,60 @@ void make_move(ChessBoard &board, uint64_t move) {
 
     
     // Handle special move flags (e.g., promotion, en passant, castling)
-    if (promotion_piece) {
+    if (promotion_piece != no_piece) {
         set_bit(board.bitboards[promotion_piece], to_square);
+    } else if (enpassant) {
+        // En passant special move
+        if (board.white_to_move) {
+            clear_bit(board.bitboards[p], to_square + 8);
+        } else {
+            clear_bit(board.bitboards[P], to_square - 8);
+        }
+        // Set the moving piece in the destination square
+        set_bit(board.bitboards[piece], to_square);
     } else {
         // Set the moving piece in the destination square
         set_bit(board.bitboards[piece], to_square);
     }
 
+    // enpassant
+    if (double_push) {
+                std::cout << "Double push is true" << std::endl;
+
+        if (board.white_to_move) {
+            board.en_passant_square = to_square - 8;
+        } else {
+            board.en_passant_square = to_square + 8;
+        }
+    } else {
+        board.en_passant_square = no_square;
+    }
+
+    // Update castling rights
+    if (castling) {
+        std::cout << "Castling is true" << std::endl;
+            switch (to_square) {
+                case g1:
+                    clear_bit(board.bitboards[R], h1);
+                    set_bit(board.bitboards[R], f1);
+                    break;
+                case c1:
+                    clear_bit(board.bitboards[R], a1);
+                    set_bit(board.bitboards[R], d1);
+                    break;
+                case g8:
+                    clear_bit(board.bitboards[r], h8);
+                    set_bit(board.bitboards[r], f8);
+                    break;
+                case c8:
+                    clear_bit(board.bitboards[r], a8);
+                    set_bit(board.bitboards[r], d8);
+                    break;
+            }
+        }
+
+    board.castling_rights &= castling_rights[from_square];
+    board.castling_rights &= castling_rights[to_square];
 
     // Swap side to move
     board.white_to_move = !board.white_to_move;
@@ -92,9 +146,9 @@ void make_move(ChessBoard &board, uint64_t move) {
 
 
 int main() {
-    ChessBoard board = create_board_from_fen("8/8/8/3p4/4P3/8/8/8 w - - 0 1");
+    ChessBoard board = create_board_from_fen("r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R b KQkq - - 0 1");
 
-    uint64_t move = encode_move(e4, d5, P, no_piece, no_piece, false, 0);
+    uint64_t move = encode_move(e8, f8, k, no_piece, no_piece, 0, 0, 0);
 
     print_move(move);
 
