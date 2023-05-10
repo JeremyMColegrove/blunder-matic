@@ -73,7 +73,9 @@ ChessBoard create_board_from_fen(const std::string& fen) {
     if (enPassant != "-") {
         int file = enPassant[0] - 'a';
         int rank = enPassant[1] - '0';
-        board.en_passant_square = rank * 8 + file;
+        board.en_passant_square = (8 - rank) * 8 + file;
+        printBitboard(1ULL << board.en_passant_square);
+        std::cout << rank << std::endl;
     } else {
         board.en_passant_square = no_square;
     }
@@ -89,12 +91,12 @@ ChessBoard create_board_from_fen(const std::string& fen) {
     return board;
 }
 
-void make_move(ChessBoard &board, uint64_t move) {
+void makeMove(ChessBoard &board, uint64_t move) {
     int from_square = decode_move_from(move);
     int to_square = decode_move_to(move);
     int piece = decode_piece_type(move);
     int captured_piece = decode_capture_piece(move);
-    int castling = decode_castling(move);
+    bool castling = decode_castling(move);
     int enpassant = decode_en_passant_flag(move);
     int promotion_piece = decode_promotion_piece(move);
     bool double_push = decode_double_push_flag(move);
@@ -167,20 +169,16 @@ void make_move(ChessBoard &board, uint64_t move) {
     board.white_to_move = !board.white_to_move;
 }
 
-
-
 int main() {
-    ChessBoard board = create_board_from_fen("r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - - 0 1");
+    ChessBoard board = create_board_from_fen("k4p2/6P1/2pP4/3p4/4P3/8/7P/K7 w - c7 0 1");
     initAttackTables();
 
-    // init_moves();
-    // uint64_t move = encode_move(h8, g8, r, no_piece, no_piece, 0, 0, 0);
+    printBoard(board);
 
-    // print_move(move);
+    Moves moves;
+    generateMoves(board, moves);
 
-    // make_move(board, move);
-
-    // print_board(board);
+    printMoves(moves);
 
     return 0;
 }

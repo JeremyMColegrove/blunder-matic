@@ -146,32 +146,69 @@ const U64 magicB[64] = {
     0x4010011029020020ULL
 };
 
-void generateMoves(ChessBoard &board, Moves *moves) {
-    // calculate moves
 
-
-}
 
 
 // Generate attack bitboard for pawn at the given position and side
-uint64_t generatePawnAttacks(int side, int position) {
+uint64_t generatePawnAttacks(int side, int square) {
         uint64_t attacks = 0;
 
         if (side == white) { // White
-            if (position >= 8) { // Exclude 7th and 8th ranks
-                attacks |= ((1ULL << (position - 7)) & NOT_A_FILE) | ((1ULL << (position - 9)) & NOT_H_FILE);
+            if (square >= 8) { // Exclude 7th and 8th ranks
+                attacks |= ((1ULL << (square - 7)) & NOT_A_FILE) | ((1ULL << (square - 9)) & NOT_H_FILE);
             }
         } else { // Black
-            if (position < 56) { // Exclude 1st and 2nd ranks
-                attacks |= ((1ULL << (position+9)) & NOT_A_FILE) | ((1ULL << (position+7)) & NOT_H_FILE);
+            if (square < 56) { // Exclude 1st and 2nd ranks
+                attacks |= ((1ULL << (square+9)) & NOT_A_FILE) | ((1ULL << (square+7)) & NOT_H_FILE);
             }
         }
         return attacks;
 }
 
+U64 generateKnightMasks(int square) {
+    //Generate the knight tables
+    U64 board = 0UL;
+    U64 attacks = 0UL;
+    set_bit(board, square);
+
+    //Knight attacks  attacks//
+
+    if (board >> 15 & not_a_file) attacks |= board >> 15;
+    if (board >> 17 & not_h_file) attacks |= board >> 17;
+
+    if (board >> 6 & not_ab_file)  attacks |= board >> 6;
+    if (board >> 10 & not_gh_file) attacks |= board >> 10;
 
 
+    if (board << 15 & not_h_file) attacks |= board << 15;
+    if (board << 17 & not_a_file) attacks |= board << 17;
 
+    if (board << 6 & not_gh_file)  attacks |= board << 6;
+    if (board << 10 & not_ab_file) attacks |= board << 10;
+
+    return attacks;
+}
+
+U64 generateKingMasks(int square) {
+    //Generate the kings tables
+    U64 white_board = 0UL;
+    U64 attacks = 0UL;
+    set_bit(white_board, square);
+
+    //Left
+    if (white_board >> 1 & not_h_file) attacks |= white_board >> 1;
+    if (white_board >> 9 & not_h_file) attacks |= white_board >> 9;
+    if (white_board >> 7 & not_a_file) attacks |= white_board >> 7;
+
+    if (white_board << 1 & not_a_file) attacks |= white_board << 1;
+    if (white_board << 9 & not_a_file) attacks |= white_board << 9;
+    if (white_board << 7 & not_h_file) attacks |= white_board << 7;
+
+    attacks |= white_board >> 8;
+    attacks |= white_board << 8;
+
+    return attacks;
+}
 
 uint64_t generateBishopAttacks(int square, uint64_t occupancy) {
     uint64_t attacks = 0;
@@ -245,11 +282,6 @@ uint64_t generateRookAttacks(int square, uint64_t occupancy) {
     return attacks;
 }
 
-
-
-
-
-
 // the attack mask does not include corner squares or edge squares, for indexing into the magic bitboard
 U64 generateRookAttackMask(int square) {
     U64 mask = 0;
@@ -292,13 +324,6 @@ const int bishopRelevantBits[64] = {
             12, 11, 11, 11, 11, 11, 11, 12,
     };
 
-void initSliderMasks() {
-    for (int square = 0; square < BOARD_SIZE; square++) {
-        bishopAttackMasks[square] = generateBishopAttackMask(square);
-        rookAttackMasks[square] = generateRookAttackMask(square);
-    }
-}
-
 U64 setOccupancy(int index, int bits_in_mask, U64 attack_mask) {
     U64 occupancy = 0ULL;
 
@@ -316,8 +341,18 @@ U64 setOccupancy(int index, int bits_in_mask, U64 attack_mask) {
 
 void initAttackTables() {
 
-    initSliderMasks();
+    
+    // generate all masks
+    for (int square = 0; square < BOARD_SIZE; square++) {
+        bishopAttackMasks[square] = generateBishopAttackMask(square);
+        rookAttackMasks[square] = generateRookAttackMask(square);
+        kingMasks[square] = generateKingMasks(square);
+        knightMasks[square] = generateKnightMasks(square);
+        pawnAttackTable[white][square] = generatePawnAttacks(white, square);
+        pawnAttackTable[black][square] = generatePawnAttacks(black, square);
+    }
 
+    // generate magic bitboards for sliding pieces
     for (int square=0; square<64; square++)
     {
         // get our rook attack mask
@@ -362,17 +397,155 @@ void initAttackTables() {
 }
 
 U64 getRookAttacks(int square, U64 occupancy) {
-    occupancy &= rookAttackMasks[square];//generateRookAttackMask(square);
+    occupancy &= rookAttackMasks[square];
     occupancy *= magicR[square];
     occupancy >>= 64 - rookRelevantBits[square];
     return rookAttackTable[square][occupancy];
 }
 
 U64 getBishopAttacks(int square, U64 occupancy) {
-    occupancy &= bishopAttackMasks[square];//generateBishopAttackMask(square);
+    occupancy &= bishopAttackMasks[square];
     occupancy *= magicB[square];
     occupancy >>= 64 - bishopRelevantBits[square];
     return bishopAttackTable[square][occupancy];
+}
+
+U64 getQueenAttacks(int square, U64 occupancy) {
+    return getRookAttacks(square, occupancy) | getBishopAttacks(square, occupancy);
+}
+
+U64 getMoves(int piece, int square, ChessBoard &board) {
+    // go through all of the bitboards and check which piece is on the piece, assuming it is not an invalid piece
+    U64 attacks = 0ULL;
+    U64 piece_bitboard = (1ULL << square);
+    int side = board.white_to_move ? white : black;
+
+    switch (piece) {
+        case r:
+        case R:
+            return getRookAttacks(square, board.occupancies[both]) & ~board.occupancies[side];
+        case b:
+        case B:
+            return getBishopAttacks(square, board.occupancies[both]) & ~board.occupancies[side];
+        case q:
+        case Q:
+            return (getBishopAttacks(square, board.occupancies[both]) | getRookAttacks(square, board.occupancies[both])) & ~board.occupancies[side];
+        case p:
+            //  single pushes
+            attacks |= ((piece_bitboard << 8) & ~board.occupancies[both]) | (pawnAttackTable[side][square] & board.occupancies[side ^ 1]);
+            //  double pushes
+            attacks |= ((((piece_bitboard & row7) << 8) & ~board.occupancies[both]) << 8) & ~board.occupancies[both];
+            // handle enpassants here as well
+            if (board.en_passant_square != no_square) {
+                attacks |= pawnAttackTable[side][square] & (1ULL << board.en_passant_square);
+            }
+            return attacks;
+        case P:
+            // single pushes
+            attacks |= ((piece_bitboard >> 8) & ~board.occupancies[both]) | (pawnAttackTable[side][square] & board.occupancies[side ^ 1]);
+            // double pushes
+            attacks |= ((((piece_bitboard & row2) >> 8) & ~board.occupancies[both]) >> 8) & ~board.occupancies[both];
+
+            // handle enpassants here as well
+            if (board.en_passant_square != no_square) {
+                // check if enpassant square and capture mask collide
+                attacks |= pawnAttackTable[side][square] & (1ULL << board.en_passant_square);
+            }
+            return attacks;
+        case n:
+        case N:
+            return knightMasks[square] & ~board.occupancies[side];
+        case k:
+        case K:
+            return kingMasks[square] & ~board.occupancies[side];
+    }
+    return attacks;
+}
+
+inline int getOpponentPiece(ChessBoard &board, int square) {
+    int offset = board.white_to_move?6:0;
+    // king is capturing a piece
+    if (get_bit(board.occupancies[board.white_to_move?black:white], square)) {
+        // search opponents bitboards
+        for (int i=0; i<6; i++) {
+            if (get_bit(board.bitboards[i + offset], square)) {
+                return (offset + i) % 12;
+            }
+        }
+    }
+
+    return no_piece;
+}
+
+void generateMoves(ChessBoard &board, Moves &moves) {
+    // calculate moves
+    moves.count = 0;
+
+    int square, side;
+
+    side = (board.white_to_move) ? white : black;
+    // get the right pieces (for easier lookup later)
+    int pawn, knight, bishop, rook, queen, king;
+    U64 *opponent_bitboards;
+    if (board.white_to_move == false) {
+        pawn = p, knight=n, bishop=b, rook=r, queen=q, king=k;
+        opponent_bitboards=board.bitboards;
+    } else {
+        pawn = P, knight=N, bishop=B, rook=R, queen=Q, king=K;
+        opponent_bitboards=board.bitboards+6;
+    }
+
+    //KING MOVES
+    U64 empty_squares = ~board.occupancies[side];
+    int king_square = __builtin_ctzll(board.bitboards[king]);
+    U64 king_moves = kingMasks[king_square] & empty_squares;
+
+    // get all of the possible destinations for the king
+    while (king_moves) {
+        square = __builtin_ctzll(king_moves);
+
+        // encode the move
+        int captured_piece = getOpponentPiece(board, square);
+        moves.list[moves.count++] = encode_move(king_square, square, king, captured_piece, no_piece, false, false, false);
+        pop_lsb(king_moves);
+    }
+
+
+    // PAWN MOVES
+    U64 pawns = board.bitboards[pawn];
+    while (pawns) {
+        square = __builtin_ctzll(pawns);
+        U64 piece_bitboard = (1ULL << square);
+
+        // attacks
+        U64 pawnMoves = getMoves(pawn, square, board);
+        
+        while (pawnMoves) {
+            int destination = __builtin_ctzll(pawnMoves);
+
+            bool is_promotion_square = false;
+            if (side == black) {
+                is_promotion_square = (destination >= 56 && destination <= 63);
+            } else {
+                is_promotion_square = (destination >= 0 && destination <= 7);
+            }
+
+            int captured_piece = getOpponentPiece(board, square);
+
+            if (is_promotion_square) {
+                moves.list[moves.count++] = encode_move(square, destination, pawn, captured_piece, rook, false, false, false);
+                moves.list[moves.count++] = encode_move(square, destination, pawn, captured_piece, bishop, false, false, false);
+                moves.list[moves.count++] = encode_move(square, destination, pawn, captured_piece, queen, false, false, false);
+                moves.list[moves.count++] = encode_move(square, destination, pawn, captured_piece, knight, false, false, false);
+            } else if (destination == board.en_passant_square) {
+                moves.list[moves.count++] = encode_move(square, destination, pawn, no_piece, no_piece, true, false, false);
+            } else {
+                moves.list[moves.count++] = encode_move(square, destination, pawn, no_piece, no_piece, false, false, abs(square-destination)==16);
+            }
+            pop_lsb(pawnMoves);
+        }
+        pop_lsb(pawns);
+    }
 }
 
 

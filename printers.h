@@ -3,14 +3,18 @@
 
 #include "engine.h"
 #include "utils.h"
+#include "moves.h"
 
 
-void print_bitboard(uint64_t bitboard);
+void printBitboard(uint64_t bitboard);
 
 
-void print_move(uint64_t move);
+void printMove(uint64_t move);
 
+void printMoves(Moves &moves);
+
+void printMoveHeader();
 // Function to print the chess board
-void print_board(ChessBoard& board);
+void printBoard(ChessBoard& board);
 
 #endif

@@ -2,7 +2,7 @@
 
 const char ascii_pieces[] = "PNBRQKpnbrqk-";
 
-void print_bitboard(uint64_t bitboard) {
+void printBitboard(uint64_t bitboard) {
     for (int i=0; i<64; i++)
     {
         if ((i & 7) == 0) {
@@ -15,8 +15,13 @@ void print_bitboard(uint64_t bitboard) {
     std::cout << "\n\n\t\ta  b  c  d  e  f  g  h" << std::endl;
 }
 
+void printMoveHeader() {
+    printf("from\tto\tpiece\tcapturing\tpromoted\tenp\tcastling\tdouble_push\n");
+}
 
-void print_move(uint64_t move) {
+
+
+void printMove(uint64_t move) {
     int from_square = decode_move_from(move);
     int to_square = decode_move_to(move);
     int piece = decode_piece_type(move);
@@ -26,8 +31,6 @@ void print_move(uint64_t move) {
     int promotion_piece = decode_promotion_piece(move);
     bool double_push = decode_double_push_flag(move);
     
-    std::cout << captured_piece << std::endl;
-    printf("to\tfrom\tpiece\tcaptured\tpromoted\tenp\tcastling\tdouble_push\n");
     printf("%c%c\t%c%c\t%c\t%c\t\t%c\t\t%d\t%d\t\t%d\n", 
         static_cast<char>(from_square % 8 + 'a'),
         static_cast<char>(8 - from_square / 8 + '0'),
@@ -39,26 +42,18 @@ void print_move(uint64_t move) {
         enpassant,
         castling,
         double_push);
+}
 
-    // std::cout << "Move: "
-    //           << static_cast<char>(from_square % 8 + 'a')
-    //           << static_cast<char>(8 - from_square / 8 + '0')
-    //           << "\t"
-    //           << static_cast<char>(to_square % 8 + 'a')
-    //           << static_cast<char>(8 - to_square / 8 + '0')
-    //           << "\t"
-    //           << piece
-    //           << "\t"
-    //           << captured_piece
-    //           << "\t"
-    //           << enpassant
-    //           << "\t"
-    //           << promotion_piece
-    //           << std::endl;
+void printMoves(Moves &moves) {
+    printMoveHeader();
+
+    for (int i=0; i<moves.count; i++) {
+        printMove(moves.list[i]);
+    }
 }
 
 // Function to print the chess board
-void print_board(ChessBoard& board) {
+void printBoard(ChessBoard& board) {
     std::array<std::string, 12> pieceSymbols = {
         "♟", "♞", "♝", "♜", "♛", "♚",  // Black pieces
         "♙", "♘", "♗", "♖", "♕", "♔", // White pieces
@@ -103,7 +98,7 @@ void print_board(ChessBoard& board) {
     std::cout << "En passant square: ";
     if (board.en_passant_square != -1) {
         int file = board.en_passant_square % 8;
-        int rank = board.en_passant_square / 8;
+        int rank = (8 - board.en_passant_square / 8);
         std::cout << static_cast<char>('a' + file) << (rank);
     } else {
         std::cout << "-";

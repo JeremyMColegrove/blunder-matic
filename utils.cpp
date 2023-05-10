@@ -10,7 +10,7 @@ uint64_t random_sparse_64() {
     }
     return r;
 }
-uint64_t encode_move(int from, int to, int piece_type, int captured_piece, int promotion_piece, bool en_passant, int castling, bool double_push) {
+uint64_t encode_move(int from, int to, int piece_type, int captured_piece, int promotion_piece, bool en_passant, bool castling, bool double_push) {
     return (static_cast<uint64_t>(from) << MOVE_FROM_SHIFT) |
            (static_cast<uint64_t>(to) << MOVE_TO_SHIFT) |
            (static_cast<uint64_t>(piece_type) << PIECE_TYPE_SHIFT) |
@@ -45,8 +45,8 @@ bool decode_en_passant_flag(uint64_t move) {
     return (move >> EN_PASSANT_FLAG_SHIFT) & 0x1;
 }
 
-int decode_castling(uint64_t move) {
-    return (move >> CASTLING_SHIFT) & 0x3;
+bool decode_castling(uint64_t move) {
+    return (move >> CASTLING_SHIFT) & 0x1;
 }
 
 bool decode_double_push_flag(uint64_t move) {
