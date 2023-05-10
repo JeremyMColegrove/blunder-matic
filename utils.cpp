@@ -1,7 +1,15 @@
 #include "utils.h"
 
-
-
+std::random_device rd;
+std::mt19937_64 gen(rd());
+// Generate a sparse 64-bit integer
+uint64_t random_sparse_64() {
+    uint64_t r = 0;
+    for (int i = 0; i < 64; i += 5) {
+        r |= static_cast<uint64_t>(1) << (gen() % 64);
+    }
+    return r;
+}
 uint64_t encode_move(int from, int to, int piece_type, int captured_piece, int promotion_piece, bool en_passant, int castling, bool double_push) {
     return (static_cast<uint64_t>(from) << MOVE_FROM_SHIFT) |
            (static_cast<uint64_t>(to) << MOVE_TO_SHIFT) |

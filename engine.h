@@ -8,9 +8,10 @@
 #include <string>
 #include <array>
 
-#define U64 u_int64_t
+typedef unsigned long long U64;
 
 using namespace std;
+
 
 enum {
     a8, b8, c8, d8, e8, f8, g8, h8,
@@ -48,6 +49,8 @@ struct ChessBoard {
     unsigned half_move_counter;
     unsigned full_move_counter;
 };
+
+ChessBoard create_board_from_fen(const std::string& fen);
 
 
 #endif

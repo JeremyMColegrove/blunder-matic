@@ -2,6 +2,11 @@
 #define UTILS_H
 
 #include "engine.h"
+#include <cstdint>
+#include <random>
+#include <unordered_set>
+
+uint64_t random_sparse_64();
 
 // pops bit at square
 #define pop_bit(x, square) (x &= ~(1ULL << (square)))

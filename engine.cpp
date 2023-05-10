@@ -171,8 +171,9 @@ void make_move(ChessBoard &board, uint64_t move) {
 
 int main() {
     ChessBoard board = create_board_from_fen("r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - - 0 1");
+    initAttackTables();
 
-    init_moves();
+    // init_moves();
     // uint64_t move = encode_move(h8, g8, r, no_piece, no_piece, 0, 0, 0);
 
     // print_move(move);
