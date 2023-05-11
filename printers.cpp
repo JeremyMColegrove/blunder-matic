@@ -1,6 +1,5 @@
 #include "printers.h"
 
-const char ascii_pieces[] = "PNBRQKpnbrqk-";
 
 void printBitboard(uint64_t bitboard) {
     for (int i=0; i<64; i++)

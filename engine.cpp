@@ -170,7 +170,7 @@ void makeMove(ChessBoard &board, uint64_t move) {
 }
 
 int main() {
-    ChessBoard board = create_board_from_fen("k4p2/6P1/2pP4/3p4/4P3/8/7P/K7 w - c7 0 1");
+    ChessBoard board = create_board_from_fen("k4p2/6P1/2pP4/3n4/4P3/8/7P/K7 w - c7 0 1");
     initAttackTables();
 
     printBoard(board);

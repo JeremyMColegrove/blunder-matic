@@ -5,6 +5,7 @@
 #include "utils.h"
 #include "moves.h"
 
+const char ascii_pieces[] = "PNBRQKpnbrqk-";
 
 void printBitboard(uint64_t bitboard);
 
