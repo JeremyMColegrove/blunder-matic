@@ -20,19 +20,19 @@ void init_occupancies(ChessBoard &board) {
             int square = __builtin_ctzll(bitboard);
 
             if (i < 6) {
-                set_bit(board.occupancies[white], square);
+                setBit(board.occupancies[white], square);
             } else {
-                set_bit(board.occupancies[black], square);
+                setBit(board.occupancies[black], square);
             }
 
-            pop_lsb(bitboard);
+            popLsb(bitboard);
         }   
     }
 
     board.occupancies[both] = board.occupancies[white] | board.occupancies[black];
 }
 
-ChessBoard create_board_from_fen(const std::string& fen) {
+ChessBoard createBoardFromFen(const std::string& fen) {
     ChessBoard board = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     std::istringstream fenStream(fen);
     std::string boardState;
@@ -91,42 +91,42 @@ ChessBoard create_board_from_fen(const std::string& fen) {
     return board;
 }
 
-void makeMove(ChessBoard &board, uint64_t move) {
-    int from_square = decode_move_from(move);
-    int to_square = decode_move_to(move);
-    int piece = decode_piece_type(move);
-    int captured_piece = decode_capture_piece(move);
-    bool castling = decode_castling(move);
-    int enpassant = decode_en_passant_flag(move);
-    int promotion_piece = decode_promotion_piece(move);
-    bool double_push = decode_double_push_flag(move);
-
+bool makeMove(ChessBoard &board, uint64_t move) {
+    int from_square = decodeMoveFrom(move);
+    int to_square = decodeMoveTo(move);
+    int piece = decodePieceType(move);
+    int captured_piece = decodeCapturePiece(move);
+    bool castling = decodeCastling(move);
+    int enpassant = decodeEnPassantFlag(move);
+    int promotion_piece = decodePromotionPiece(move);
+    bool double_push = decodeDoublePushFlag(move);
+    int side = board.white_to_move ? white : black;
     
     // Clear the moving piece from the origin square
-    pop_bit(board.bitboards[piece], from_square);
+    popBit(board.bitboards[piece], from_square);
 
 
     // Remove the captured piece if any
     if (captured_piece != no_piece) {
-        pop_bit(board.bitboards[captured_piece], to_square);
+        popBit(board.bitboards[captured_piece], to_square);
     }
 
     
     // Handle special move flags (e.g., promotion, en passant, castling)
     if (promotion_piece != no_piece) {
-        set_bit(board.bitboards[promotion_piece], to_square);
+        setBit(board.bitboards[promotion_piece], to_square);
     } else if (enpassant) {
         // En passant special move
         if (board.white_to_move) {
-            pop_bit(board.bitboards[p], to_square + 8);
+            popBit(board.bitboards[p], to_square + 8);
         } else {
-            pop_bit(board.bitboards[P], to_square - 8);
+            popBit(board.bitboards[P], to_square - 8);
         }
         // Set the moving piece in the destination square
-        set_bit(board.bitboards[piece], to_square);
+        setBit(board.bitboards[piece], to_square);
     } else {
         // Set the moving piece in the destination square
-        set_bit(board.bitboards[piece], to_square);
+        setBit(board.bitboards[piece], to_square);
     }
 
     // enpassant
@@ -144,20 +144,20 @@ void makeMove(ChessBoard &board, uint64_t move) {
     if (castling) {
             switch (to_square) {
                 case g1:
-                    pop_bit(board.bitboards[R], h1);
-                    set_bit(board.bitboards[R], f1);
+                    popBit(board.bitboards[R], h1);
+                    setBit(board.bitboards[R], f1);
                     break;
                 case c1:
-                    pop_bit(board.bitboards[R], a1);
-                    set_bit(board.bitboards[R], d1);
+                    popBit(board.bitboards[R], a1);
+                    setBit(board.bitboards[R], d1);
                     break;
                 case g8:
-                    pop_bit(board.bitboards[r], h8);
-                    set_bit(board.bitboards[r], f8);
+                    popBit(board.bitboards[r], h8);
+                    setBit(board.bitboards[r], f8);
                     break;
                 case c8:
-                    pop_bit(board.bitboards[r], a8);
-                    set_bit(board.bitboards[r], d8);
+                    popBit(board.bitboards[r], a8);
+                    setBit(board.bitboards[r], d8);
                     break;
             }
         }
@@ -165,20 +165,112 @@ void makeMove(ChessBoard &board, uint64_t move) {
     board.castling_rights &= castling_rights[from_square];
     board.castling_rights &= castling_rights[to_square];
 
+    board.occupancies[white] = 0;
+    board.occupancies[black] = 0;
+    // loop over white pieces bitboards
+    for (int bb_piece = P; bb_piece <= K; bb_piece++)
+        board.occupancies[white] |= board.bitboards[bb_piece];
+
+    // loop over black pieces bitboards
+    for (int bb_piece = p; bb_piece <= k; bb_piece++)
+        board.occupancies[black] |= board.bitboards[bb_piece];
+
+    // update both sides occupancies
+    board.occupancies[both] = (board.occupancies[white] | board.occupancies[black]);
+
     // Swap side to move
     board.white_to_move = !board.white_to_move;
+
+    // make sure that king is not exposed into a check
+    if (isKingAttacked(board, board.white_to_move?white:black))
+    {    
+        // return illegal move
+        return false;
+    }
+    
+    return true;
 }
 
-int main() {
-    ChessBoard board = create_board_from_fen("k4p2/6P1/2pP4/3n4/4P3/8/7P/K7 w - c7 0 1");
-    initAttackTables();
-
-    printBoard(board);
+int nodes = 0;
+void perftHelper(ChessBoard &board, int depth) {
+    if (depth == 0) {
+        nodes ++;
+        return;
+    }
 
     Moves moves;
     generateMoves(board, moves);
 
-    printMoves(moves);
+    ChessBoard boardCopy = board;
+    for (int i=0; i<moves.count; i++) {
+        int move = moves.list[i];
+
+        if (makeMove(board, move) == false) {
+            board = boardCopy;
+            continue;
+        }
+
+        perftHelper(board, depth - 1);
+
+        board = boardCopy;
+    }
+}
+
+void perft(ChessBoard &board, int depth) {
+    nodes = 0;
+
+    auto start = std::chrono::steady_clock::now();
+
+    Moves moves;
+    generateMoves(board, moves);
+
+    ChessBoard boardCopy = board;
+
+    for (int i=0; i<moves.count; i++) {
+        int move = moves.list[i];
+
+        if (makeMove(board, move) == false) {
+            board = boardCopy;
+            continue;
+        }
+
+        int cummulative_nodes = nodes;
+
+        perftHelper(board, depth - 1);
+
+        int old_nodes = nodes - cummulative_nodes;
+
+        board = boardCopy;
+
+        printf("%s%s%c %d\n", 
+            squaretoCoordinate(decodeMoveFrom(move)).c_str(),
+            squaretoCoordinate(decodeMoveTo(move)).c_str(),
+            decodePromotionPiece(move)!=no_piece ? ascii_pieces[(decodePromotionPiece(move) % 6) + 6] : ' ',
+            old_nodes);
+    }
+
+    auto end = std::chrono::steady_clock::now();
+
+    auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    std::cout << std::endl <<  nodes << std::endl;
+}
+
+
+
+int main(int argc, char **argv) {
+    if (argc > 2) {
+        
+        int depth = atoi(argv[1]);
+
+        // set the position
+        // ChessBoard board = createBoardFromFen(argv[2]);
+        ChessBoard board = createBoardFromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+
+        initAttackTables();
+
+        perft(board, 3);
+
+    } 
 
     return 0;
 }

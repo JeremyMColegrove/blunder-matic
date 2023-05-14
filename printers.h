@@ -7,6 +7,7 @@
 
 const char ascii_pieces[] = "PNBRQKpnbrqk-";
 
+
 void printBitboard(uint64_t bitboard);
 
 
@@ -17,5 +18,7 @@ void printMoves(Moves &moves);
 void printMoveHeader();
 // Function to print the chess board
 void printBoard(ChessBoard& board);
+
+std::string squaretoCoordinate(int square);
 
 #endif

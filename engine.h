@@ -8,6 +8,7 @@
 #include <string>
 #include <array>
 
+#define STARTING_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 typedef unsigned long long U64;
 
 using namespace std;
@@ -50,7 +51,7 @@ struct ChessBoard {
     unsigned full_move_counter;
 };
 
-ChessBoard create_board_from_fen(const std::string& fen);
+ChessBoard createBoardFromFen(const std::string& fen);
 
 
 #endif
