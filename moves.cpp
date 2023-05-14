@@ -1,7 +1,10 @@
 #include "moves.h"
 #include "printers.h"
+#include "logger.h"
+
 
 bool attackTablesInitialized = false;
+
 U64 knightMasks[64];
 U64 kingMasks[64];
 U64 bishopAttackMasks[64];
@@ -366,6 +369,10 @@ U64 setOccupancy(int index, int bits_in_mask, U64 attack_mask) {
 }
 
 void initAttackTables() {
+    if (attackTablesInitialized) return;
+
+    writeToLogFile("Initializing AttackTables");
+
     attackTablesInitialized = true;
     // generate all masks
     for (int square = 0; square < BOARD_SIZE; square++) {

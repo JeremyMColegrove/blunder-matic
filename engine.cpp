@@ -2,7 +2,7 @@
 #include "utils.h"
 #include "printers.h"
 #include "moves.h"
-
+#include "logger.h"
 
  int char_pieces[128] = {
         ['P'] = P, ['N'] = N, ['B'] = B, ['R'] = R, ['Q'] = Q, ['K'] = K,
@@ -33,6 +33,10 @@ void init_occupancies(ChessBoard &board) {
 }
 
 ChessBoard createBoardFromFen(const std::string& fen) {
+    initAttackTables();
+
+    writeToLogFile("Creating board with FEN: ", fen);
+
     ChessBoard board = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     std::istringstream fenStream(fen);
     std::string boardState;
@@ -217,6 +221,8 @@ void perftHelper(ChessBoard &board, int depth) {
 }
 
 void perft(ChessBoard &board, int depth) {
+
+    writeToLogFile("Starting PERFT with depth", depth);
     nodes = 0;
 
     auto start = std::chrono::steady_clock::now();
@@ -253,6 +259,9 @@ void perft(ChessBoard &board, int depth) {
 
     auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     std::cout << std::endl <<  nodes << std::endl;
+
+    writeToLogFile("PERFT finished");
+
 }
 
 
@@ -260,15 +269,12 @@ void perft(ChessBoard &board, int depth) {
 int main(int argc, char **argv) {
     if (argc > 2) {
         
+        // set the position
+        ChessBoard board = createBoardFromFen(argv[2]);
+
         int depth = atoi(argv[1]);
 
-        // set the position
-        // ChessBoard board = createBoardFromFen(argv[2]);
-        ChessBoard board = createBoardFromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-
-        initAttackTables();
-
-        perft(board, 3);
+        perft(board, depth);
 
     } 
 
