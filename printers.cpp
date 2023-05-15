@@ -1,7 +1,7 @@
 #include "printers.h"
 
 
-void printBitboard(uint64_t bitboard) {
+void printBitboard(uint32_t bitboard) {
     for (int i=0; i<64; i++)
     {
         if ((i & 7) == 0) {
@@ -25,7 +25,7 @@ std::string squaretoCoordinate(int square) {
     return result;
 }
 
-void printMove(uint64_t move) {
+void printMove(uint32_t move) {
     int from_square = decodeMoveFrom(move);
     int to_square = decodeMoveTo(move);
     int piece = decodePieceType(move);

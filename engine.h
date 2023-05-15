@@ -9,7 +9,10 @@
 #include <array>
 
 #define STARTING_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
 typedef unsigned long long U64;
+
+
 
 using namespace std;
 
@@ -49,11 +52,11 @@ struct ChessBoard {
     int en_passant_square;
     unsigned half_move_counter;
     unsigned full_move_counter;
-    U64 attackMapWhite = 0ULL;
-    U64 attackMapBlack = 0ULL;
 };
 
 ChessBoard createBoardFromFen(const std::string& fen);
+
+U64 zobristHash(const ChessBoard &board);
 
 
 #endif

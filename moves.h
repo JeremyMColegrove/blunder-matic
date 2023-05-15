@@ -21,15 +21,15 @@
 #define castle_piece_mask_bq 14
 
 constexpr int MAX_PLY = 64;
-constexpr uint64_t NOT_A_FILE = 0xFEFEFEFEFEFEFEFE;
-constexpr uint64_t NOT_H_FILE = 0x7F7F7F7F7F7F7F7F;
+constexpr U64 NOT_A_FILE = 0xFEFEFEFEFEFEFEFE;
+constexpr U64 NOT_H_FILE = 0x7F7F7F7F7F7F7F7F;
 constexpr int BOARD_SIZE = 64;
 constexpr int RANKS = 8;
 constexpr int FILES = 8;
-constexpr uint64_t LSB_MASK = 0x1;
+constexpr U64 LSB_MASK = 0x1;
 
 struct Moves {
-    int list[MAX_PLY];
+    uint32_t list[MAX_PLY];
     int count;
 };
 
@@ -41,5 +41,11 @@ void generateMoves(ChessBoard &board, Moves &moves);
 void initAttackTables();
 
 bool isSquareAttacked(ChessBoard &board, int attackingSide, int square);
+
+bool makeMove(ChessBoard &board, uint32_t move);
+
+void parseMoves(ChessBoard &board, const std::string &moves);
+
+inline int getOpponentPiece(ChessBoard &board, int square);
 
 #endif

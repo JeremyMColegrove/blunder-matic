@@ -8,10 +8,10 @@
 const char ascii_pieces[] = "PNBRQKpnbrqk-";
 
 
-void printBitboard(uint64_t bitboard);
+void printBitboard(uint32_t bitboard);
 
 
-void printMove(uint64_t move);
+void printMove(uint32_t move);
 
 void printMoves(Moves &moves);
 
