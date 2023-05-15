@@ -102,7 +102,7 @@ void printBoard(ChessBoard& board) {
     std::cout << std::endl;
 
     std::cout << "En passant square: ";
-    if (board.en_passant_square != -1) {
+    if (board.en_passant_square != no_square) {
         int file = board.en_passant_square % 8;
         int rank = (8 - board.en_passant_square / 8);
         std::cout << static_cast<char>('a' + file) << (rank);

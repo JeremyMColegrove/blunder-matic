@@ -9,3 +9,16 @@ std::string getCurrentTime() {
     std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeStruct);
     return std::string(buffer);
 }
+
+
+void clearLogs() {
+    std::string logFile = "blunder-matic.log";
+    std::ofstream logFileStream(logFile);
+
+    if (logFileStream.is_open()) {
+        // Close the log file, which will save the empty file
+        logFileStream.close();
+    } else {
+        std::cerr << "Unable to open log file: " << logFile << std::endl;
+    }
+}

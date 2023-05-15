@@ -465,7 +465,6 @@ inline int getOpponentPiece(ChessBoard &board, int square) {
 }
 
 
-
 void generateMoves(ChessBoard &board, Moves &moves) {
 
     if (!attackTablesInitialized) {
@@ -475,24 +474,19 @@ void generateMoves(ChessBoard &board, Moves &moves) {
     moves.count = 0;
 
     int square, side;
-    U64 attackMap = 0ULL;
     side = (board.white_to_move) ? white : black;
     // get the right pieces (for easier lookup later)
     int pawn, knight, bishop, rook, queen, king;
-    U64 *opponent_bitboards;
     if (board.white_to_move == false) {
         pawn = p, knight=n, bishop=b, rook=r, queen=q, king=k;
-        opponent_bitboards=board.bitboards;
     } else {
         pawn = P, knight=N, bishop=B, rook=R, queen=Q, king=K;
-        opponent_bitboards=board.bitboards+6;
     }
 
     //KING MOVES
     U64 emptySquares = ~board.occupancies[side];
     int kingSquare = __builtin_ctzll(board.bitboards[king]);
     U64 kingMoves = kingMasks[kingSquare] & emptySquares;
-    attackMap |= kingMoves;
     // get all of the possible destinations for the king
     while (kingMoves) {
         square = __builtin_ctzll(kingMoves);
@@ -528,7 +522,6 @@ void generateMoves(ChessBoard &board, Moves &moves) {
 
         attacks = pawnAttackTable[side][square] & (board.occupancies[side^1] | enpassantBoard);
         pawnMoves = singlePushes | doublePushes | attacks;
-        attackMap |= pawnMoves;
 
         // go through each move and add to list
         while (pawnMoves) {
@@ -571,7 +564,6 @@ void generateMoves(ChessBoard &board, Moves &moves) {
         int square = __builtin_ctzll(rooks);
         rookMoves = getRookAttacks(square, board.occupancies[both]) & ~ board.occupancies[side];
 
-        attackMap |= rookMoves;
         while (rookMoves) {
             int destination = __builtin_ctzl(rookMoves);
 
@@ -593,7 +585,6 @@ void generateMoves(ChessBoard &board, Moves &moves) {
     while (bishops) {
         int square = __builtin_ctzll(bishops);
         bishopMoves = getBishopAttacks(square, board.occupancies[both]) & ~ board.occupancies[side];
-        attackMap |= bishopMoves;
 
         while (bishopMoves) {
             int destination = __builtin_ctzl(bishopMoves);
@@ -617,7 +608,6 @@ void generateMoves(ChessBoard &board, Moves &moves) {
         int square = __builtin_ctzll(knights);
         knightMoves = knightMasks[square] & emptySquares;
 
-        attackMap |= knightMoves;
         while (knightMoves) {
             int destination = __builtin_ctzl(knightMoves);
 
@@ -640,7 +630,6 @@ void generateMoves(ChessBoard &board, Moves &moves) {
         int square = __builtin_ctzll(queens);
         queenMoves = (getRookAttacks(square, board.occupancies[both]) | getBishopAttacks(square, board.occupancies[both])) & emptySquares;
 
-        attackMap |= queenMoves;
         while (queenMoves) {
             int destination = __builtin_ctzl(queenMoves);
 
@@ -656,57 +645,50 @@ void generateMoves(ChessBoard &board, Moves &moves) {
 
         popLsb(queens);
     }
-    
+
+
     enum {wk = 1, wq = 2, bk = 4, bq = 8};
     // CASTLING MOVES
-    if (side == white && (attackMap & board.bitboards[K]) == 0) {
+    if (side == white) {
         // if castling is available and king is not in check
-        if (board.castling_rights & wk && ((attackMap | board.occupancies[both]) & castle_mask_wk) == 0) {
+        if ((board.castling_rights & wk) && (board.occupancies[both] & castle_mask_wk) == 0) {
             moves.list[moves.count++] = encodeMove(e1, g1, king, no_piece, no_piece, false, true, false);
-
         }
-        if (board.castling_rights & wq && (attackMap & castle_attack_mask_wq) ==0 && (board.occupancies[both] & castle_piece_mask_wq) == 0 ) {
+        if (board.castling_rights & wq && (board.occupancies[both] & castle_piece_mask_wq) == 0 ) {
             moves.list[moves.count++] = encodeMove(e1, c1, king, no_piece, no_piece, false, true, false);
-
         }
-    } else if (side == black && (attackMap & board.bitboards[k]) == 0) {
-        if (board.castling_rights & bk && ((attackMap | board.occupancies[both]) & castle_mask_bk) == 0) {
+    } else {
+        if (board.castling_rights & bk && (board.occupancies[both] & castle_mask_bk) == 0) {
             moves.list[moves.count++] = encodeMove(e8, g8, king, no_piece, no_piece, false, true, false);
 
         }
-        if (board.castling_rights & bq && (attackMap & castle_attack_mask_bq) ==0 && (board.occupancies[both] & castle_piece_mask_bq) == 0 ) {
+        if (board.castling_rights & bq && (board.occupancies[both] & castle_piece_mask_bq) == 0 ) {
             moves.list[moves.count++] = encodeMove(e8, c8, king, no_piece, no_piece, false, true, false);
         }
     }
 }
 
 
-bool isKingAttacked(ChessBoard &board, int attackingSide) {
+bool isSquareAttacked(ChessBoard &board, int attackingSide, int square) {
     int pawn, knight, bishop, rook, queen, king;
-    U64 *attackingBitboards;
     if (attackingSide == black) {
         pawn = p, knight=n, bishop=b, rook=r, queen=q, king=k;
-        attackingBitboards=board.bitboards;
     } else {
         pawn = P, knight=N, bishop=B, rook=R, queen=Q, king=K;
-        attackingBitboards=board.bitboards+6;
     }
 
-    // get the king square
-    int kingSquare = __builtin_ctzll(board.bitboards[king==k?K:k]);
-
     // place a knight and see if it attacks another opponent knight
-    if (knightMasks[kingSquare] & board.bitboards[knight]) return true;
+    if (knightMasks[square] & board.bitboards[knight]) return true;
 
     // check if a pawn is on the diagonal side
-    if (pawnAttackTable[attackingSide^1][kingSquare] & board.bitboards[pawn]) return true;
+    if (pawnAttackTable[attackingSide^1][square] & board.bitboards[pawn]) return true;
 
     // if the other king attacks
-    if (kingMasks[kingSquare] & board.bitboards[king]) return true;
+    if (kingMasks[square] & board.bitboards[king]) return true;
 
     // check if a rook, queen, bishop intersect with queen on kingSquare
-    if (getRookAttacks(kingSquare, board.occupancies[both]) & (board.bitboards[rook] | board.bitboards[queen])) return true;
-    if (getBishopAttacks(kingSquare, board.occupancies[both]) & (board.bitboards[bishop] | board.bitboards[queen])) return true;
+    if (getRookAttacks(square, board.occupancies[both]) & (board.bitboards[rook] | board.bitboards[queen])) return true;
+    if (getBishopAttacks(square, board.occupancies[both]) & (board.bitboards[bishop] | board.bitboards[queen])) return true;
     
     return false;
 }

@@ -78,8 +78,6 @@ ChessBoard createBoardFromFen(const std::string& fen) {
         int file = enPassant[0] - 'a';
         int rank = enPassant[1] - '0';
         board.en_passant_square = (8 - rank) * 8 + file;
-        printBitboard(1ULL << board.en_passant_square);
-        std::cout << rank << std::endl;
     } else {
         board.en_passant_square = no_square;
     }
@@ -104,8 +102,8 @@ bool makeMove(ChessBoard &board, uint64_t move) {
     int enpassant = decodeEnPassantFlag(move);
     int promotion_piece = decodePromotionPiece(move);
     bool double_push = decodeDoublePushFlag(move);
-    int side = board.white_to_move ? white : black;
-    
+    int side = board.white_to_move?white:black;
+
     // Clear the moving piece from the origin square
     popBit(board.bitboards[piece], from_square);
 
@@ -136,9 +134,9 @@ bool makeMove(ChessBoard &board, uint64_t move) {
     // enpassant
     if (double_push) {
         if (board.white_to_move) {
-            board.en_passant_square = to_square - 8;
-        } else {
             board.en_passant_square = to_square + 8;
+        } else {
+            board.en_passant_square = to_square - 8;
         }
     } else {
         board.en_passant_square = no_square;
@@ -148,18 +146,26 @@ bool makeMove(ChessBoard &board, uint64_t move) {
     if (castling) {
             switch (to_square) {
                 case g1:
+                    if (isSquareAttacked(board, black, f1) || isSquareAttacked(board, black, g1) || isSquareAttacked(board, black, e1)) 
+                        return false;
                     popBit(board.bitboards[R], h1);
                     setBit(board.bitboards[R], f1);
                     break;
                 case c1:
+                    if (isSquareAttacked(board, black, c1) || isSquareAttacked(board, black, d1) || isSquareAttacked(board, black, e1)) 
+                        return false;
                     popBit(board.bitboards[R], a1);
                     setBit(board.bitboards[R], d1);
                     break;
                 case g8:
+                    if (isSquareAttacked(board, white, f8) || isSquareAttacked(board, white, g8) || isSquareAttacked(board, white, e8)) 
+                        return false;
                     popBit(board.bitboards[r], h8);
                     setBit(board.bitboards[r], f8);
                     break;
                 case c8:
+                    if (isSquareAttacked(board, white, c8) || isSquareAttacked(board, white, d8) || isSquareAttacked(board, white, e8)) 
+                        return false;
                     popBit(board.bitboards[r], a8);
                     setBit(board.bitboards[r], d8);
                     break;
@@ -186,8 +192,9 @@ bool makeMove(ChessBoard &board, uint64_t move) {
     board.white_to_move = !board.white_to_move;
 
     // make sure that king is not exposed into a check
-    if (isKingAttacked(board, board.white_to_move?white:black))
-    {    
+    int kingSquare = __builtin_ctzll(board.white_to_move?board.bitboards[k]:board.bitboards[K]);
+    if (isSquareAttacked(board, board.white_to_move?white:black, kingSquare))
+    {   
         // return illegal move
         return false;
     }
@@ -224,9 +231,6 @@ void perft(ChessBoard &board, int depth) {
 
     writeToLogFile("Starting PERFT with depth", depth);
     nodes = 0;
-
-    auto start = std::chrono::steady_clock::now();
-
     Moves moves;
     generateMoves(board, moves);
 
@@ -255,24 +259,128 @@ void perft(ChessBoard &board, int depth) {
             old_nodes);
     }
 
-    auto end = std::chrono::steady_clock::now();
-
-    auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     std::cout << std::endl <<  nodes << std::endl;
 
     writeToLogFile("PERFT finished");
 
 }
 
+int getPieceOnSquare(ChessBoard &board, int square) {
+    for (int index = 0; index < 12; index++) {
+        U64 bitboard = board.bitboards[index];
+        if (getBit(bitboard, square)) return index;
+    }
+    return no_piece;
+}
 
+void parseMove(ChessBoard &board, const std::string &move) {
+    int from = (move[0] - 'a') + (8 - (move[1] - '0')) * 8;
+    int to = (move[2] - 'a') + (8 - (move[3] - '0')) * 8;
+    
+    int piece = getPieceOnSquare(board, from);
+
+    if (piece == no_piece) {
+        writeToLogFile("Tried to move piece that doesn't exist:", move);
+    }
+
+    // if theres a promotion piece
+    int promotionPiece = no_piece;
+    if (move.length() == 5) {
+        switch (move[4]) {
+            case 'r':
+                promotionPiece = r;
+                break;
+            case 'b':
+                promotionPiece = b;
+                break;
+            case 'q':
+                promotionPiece = q;
+                break;
+            case 'n':
+                promotionPiece = n;
+                break;
+            case 'R':
+                promotionPiece = R;
+                break;
+            case 'B':
+                promotionPiece = B;
+                break;
+            case 'Q':
+                promotionPiece = Q;
+                break;
+            case 'N':
+                promotionPiece = N;
+                break;
+        }
+    }
+    
+    bool castling = false;
+    bool doublePush = false;
+    if (piece == k || piece == K) {
+        if (abs(to - from) == 2) {
+            castling = true;
+        }
+    } else if (piece == p || piece == P) {
+        if (abs(from - to) == 16) {
+            doublePush = true;
+        }
+    }
+
+    U64 encodedMove = encodeMove(
+        from, 
+        to, 
+        piece, 
+        getPieceOnSquare(board, to), 
+        promotionPiece, 
+        (to==board.en_passant_square), 
+        castling,
+        doublePush
+        );
+
+    ChessBoard copy = board;
+    if (makeMove(board, encodedMove) == false) {
+        writeToLogFile("Tried to parse illegal move:", move);
+        board = copy;
+    }
+}
+
+
+void parseMoves(ChessBoard &board, const std::string &moves) {
+    writeToLogFile("Parsing moves:", moves);
+    std::stringstream ss(moves);
+    std::string move;
+
+    while (ss >> move) {
+        parseMove(board, move);
+    }
+}
 
 int main(int argc, char **argv) {
+    clearLogs();
+
+    // ChessBoard board = createBoardFromFen("r3k2r/8/8/5r2/6R1/8/8/R3K2R w KQkq - 0 1");
+
+    // printBoard(board);
+
+    // parseMoves(board, "e1g1");
+
+    // Moves moves;
+    // generateMoves(board, moves);
+
+    // printBoard(board);
+
+    // printMoves(moves);
+
     if (argc > 2) {
         
         // set the position
         ChessBoard board = createBoardFromFen(argv[2]);
 
         int depth = atoi(argv[1]);
+
+        if (argc > 3) {
+            parseMoves(board, argv[3]);
+        }
 
         perft(board, depth);
 

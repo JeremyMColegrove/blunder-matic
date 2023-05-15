@@ -49,6 +49,8 @@ struct ChessBoard {
     int en_passant_square;
     unsigned half_move_counter;
     unsigned full_move_counter;
+    U64 attackMapWhite = 0ULL;
+    U64 attackMapBlack = 0ULL;
 };
 
 ChessBoard createBoardFromFen(const std::string& fen);

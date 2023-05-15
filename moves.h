@@ -40,6 +40,6 @@ void generateMoves(ChessBoard &board, Moves &moves);
 
 void initAttackTables();
 
-bool isKingAttacked(ChessBoard &board, int attackingSide);
+bool isSquareAttacked(ChessBoard &board, int attackingSide, int square);
 
 #endif

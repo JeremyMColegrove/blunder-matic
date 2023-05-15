@@ -51,4 +51,6 @@ void writeToLogFile(Args... args) {
     }
 }
 
+
+void clearLogs();
 #endif
