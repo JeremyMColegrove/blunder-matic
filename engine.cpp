@@ -225,7 +225,7 @@ int main(int argc, char **argv) {
 
     ChessBoard board = createBoardFromFen("r3k2r/8/8/5r2/6R1/8/8/R3K2R w KQkq - 0 1");
 
-    search(board, 5);
+    search(board, 8, 2);
     // printBoard(board);
 
     // parseMoves(board, "e1g1");

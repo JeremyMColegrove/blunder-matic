@@ -1,17 +1,22 @@
 #include "search.h"
 
-constexpr int NUM_THREADS = 4;
 
 
 
 struct TTEntry {
     int depth;
     int score;
+    U64 hash;
     uint32_t best_move;
 };
 
 std::mutex tt_mtx;
-std::unordered_map<U64, TTEntry> transposition_table;
+// Declare the fixed size transposition table as an array
+constexpr size_t TRANSPOSITION_TABLE_SIZE = 1 << 20; // 1 million entries
+std::array<TTEntry, TRANSPOSITION_TABLE_SIZE> transposition_table;
+
+
+
 
 int quiescence(ChessBoard &board, int alpha, int beta) {
 
@@ -62,16 +67,20 @@ int negamax(ChessBoard &board, int depth, int alpha, int beta, std::vector<uint3
         return quiescence(board, alpha, beta);
     }
 
+    U64 hash = zobristHash(board);
     // Transposition table lookup
     {
-        std::lock_guard<std::mutex> lock(tt_mtx);
-        auto entry_iter = transposition_table.find(zobristHash(board));
-        if (entry_iter != transposition_table.end()) {
-            TTEntry &entry = entry_iter->second;
+        // When you read from the transposition table, also use a modulo operation
+    {
+        std::lock_guard<std::mutex> lock{tt_mtx};
+        TTEntry &entry = transposition_table[hash % TRANSPOSITION_TABLE_SIZE];
+        if (entry.hash == hash) {
             if (entry.depth >= depth) {
                 if (entry.score >= beta) {
-                    pv.clear();
-                    pv.push_back(entry.best_move);
+                    if (entry.best_move != 0xFFFFFFFF) {
+                        pv.clear();
+                        pv.push_back(entry.best_move);
+                    }
                     return entry.score;
                 }
                 alpha = std::max(alpha, entry.score);
@@ -122,50 +131,80 @@ int negamax(ChessBoard &board, int depth, int alpha, int beta, std::vector<uint3
         }
     }
 
-    // Transposition table store
+    // When you store a value in the transposition table, use a modulo operation
+    U64 hash = zobristHash(board);
     {
-        std::lock_guard<std::mutex> lock(tt_mtx);
-        transposition_table[zobristHash(board)] = {depth, best_value, child_pv[0]};
+        std::lock_guard<std::mutex> lock{tt_mtx};
+        uint32_t best_move = (child_pv.empty()) ? 0xFFFFFFFF : child_pv[0];
+        transposition_table[hash % TRANSPOSITION_TABLE_SIZE] = {depth, best_value, hash, best_move};
     }
 
     pv = child_pv;
     return best_value;
 }
-
-void parallel_search(std::shared_ptr<ChessBoard> board, int depth, int alpha, int beta, int &result, std::vector<uint32_t> &pv) {
-    result = negamax(*board, depth, alpha, beta, pv, true);
+}
+void parallel_search(ChessBoard board, int depth, int alpha, int beta, int &result, std::vector<uint32_t> &pv) {
+    result = negamax(board, depth, alpha, beta, pv, true);
 }
 
-void search(ChessBoard &board, int depth) {
+void search(ChessBoard &board, int depth, size_t numThreads) {
 
-    writeToLogFile("Searching board with Zobrist", zobristHash(board), "depth", depth);
+    writeToLogFile("Searching depth", depth, "on", numThreads, "threads");
 
     Moves moves;
     generateMoves(board, moves);
+
     std::vector<std::thread> threads;
-    std::vector<int> results(NUM_THREADS, 0);
-    std::vector<std::vector<uint32_t>> pv_lines(NUM_THREADS);
+    std::vector<int> results(numThreads, 0);
+    std::vector<std::vector<uint32_t>> pv_lines(numThreads);
    
     int best_score = -INT_MAX;
     std::vector<uint32_t> best_pv;
     std::mutex search_mtx;
 
     ChessBoard boardCopy = board;
-    for (int i = 0; i < NUM_THREADS; ++i) {
-        if (i < moves.count) {
-            // ChessBoard new_board = board;
-            std::shared_ptr<ChessBoard> new_board = std::make_shared<ChessBoard>(board);
-            if (makeMove(*new_board, moves.list[i]) == false) {
-                board = boardCopy;
-                continue;
-            }
-            
-            threads.emplace_back(parallel_search, new_board, depth - 1, -INT_MAX, -best_score, std::ref(results[i]), std::ref(pv_lines[i]));
+    int moves_per_thread = moves.count / numThreads;
+    int remaining_moves = moves.count % numThreads;
+
+    for (int i = 0; i < numThreads; ++i) {
+        int start_move = i * moves_per_thread;
+        int end_move = (i + 1) * moves_per_thread;
+
+        if (i == numThreads - 1) {
+            // Assign remaining moves to the last thread
+            end_move += remaining_moves;
+        }
+
+        if (start_move < moves.count) {
+            threads.emplace_back([&, start_move, end_move]() {
+                writeToLogFile("Thread", i, "starting, searching", end_move-start_move, "moves");
+                for (int j = start_move; j < end_move; ++j) {
+                    ChessBoard new_board = board;
+                    if (makeMove(new_board, moves.list[j]) == false) {
+                        continue;
+                    }
+                    
+                    int result;
+                    std::vector<uint32_t> pv;
+                    parallel_search(new_board, depth - 1, -INT_MAX, -best_score, result, pv);
+
+                    std::unique_lock<std::mutex> lock(search_mtx);
+                    if (result > best_score) {
+                        best_score = result;
+                        best_pv = pv;
+                        best_pv.emplace(best_pv.begin(), moves.list[j]);
+                    }
+                    lock.unlock();
+                }
+            });
         }
     }
 
+
     for (size_t i = 0; i < threads.size(); ++i) {
         threads[i].join();
+        writeToLogFile("Thread", i, "finished");
+
         std::unique_lock<std::mutex> lock(search_mtx);
         if (results[i] > best_score) {
             best_score = results[i];

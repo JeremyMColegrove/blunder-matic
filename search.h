@@ -14,6 +14,6 @@
 #include "printers.h"
 #include "evaluation.h"
 
-void search(ChessBoard &board, int depth);
+void search(ChessBoard &board, int depth, size_t numThreads);
 
 #endif
