@@ -10,6 +10,7 @@ uint32_t random_sparse_64() {
     }
     return r;
 }
+
 uint32_t encodeMove(int from, int to, int piece_type, int captured_piece, int promotion_piece, bool en_passant, bool castling, bool double_push) {
         return (static_cast<uint32_t>(from) << MOVE_FROM_SHIFT) |
            (static_cast<uint32_t>(to) << MOVE_TO_SHIFT) |

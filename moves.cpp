@@ -486,6 +486,12 @@ void generateMoves(ChessBoard &board, Moves &moves) {
     //KING MOVES
     U64 emptySquares = ~board.occupancies[side];
     int kingSquare = __builtin_ctzll(board.bitboards[king]);
+
+    if (kingSquare < 0 || kingSquare > 63) {
+        writeToLogFile("King is off the board, unexpected behavior may happen. Exiting move generator.");
+        return;
+    }
+
     U64 kingMoves = kingMasks[kingSquare] & emptySquares;
     // get all of the possible destinations for the king
     while (kingMoves) {
@@ -565,7 +571,7 @@ void generateMoves(ChessBoard &board, Moves &moves) {
         rookMoves = getRookAttacks(square, board.occupancies[both]) & ~ board.occupancies[side];
 
         while (rookMoves) {
-            int destination = __builtin_ctzl(rookMoves);
+            int destination = __builtin_ctzll(rookMoves);
 
             int capturedPiece = no_piece;
             if ((1ULL << destination) & board.occupancies[side^1]) {
@@ -587,7 +593,7 @@ void generateMoves(ChessBoard &board, Moves &moves) {
         bishopMoves = getBishopAttacks(square, board.occupancies[both]) & ~ board.occupancies[side];
 
         while (bishopMoves) {
-            int destination = __builtin_ctzl(bishopMoves);
+            int destination = __builtin_ctzll(bishopMoves);
 
             int capturedPiece = no_piece;
             if ((1ULL << destination) & board.occupancies[side^1]) {
@@ -609,7 +615,7 @@ void generateMoves(ChessBoard &board, Moves &moves) {
         knightMoves = knightMasks[square] & emptySquares;
 
         while (knightMoves) {
-            int destination = __builtin_ctzl(knightMoves);
+            int destination = __builtin_ctzll(knightMoves);
 
             int capturedPiece = no_piece;
             if ((1ULL << destination) & board.occupancies[side^1]) {
@@ -631,7 +637,7 @@ void generateMoves(ChessBoard &board, Moves &moves) {
         queenMoves = (getRookAttacks(square, board.occupancies[both]) | getBishopAttacks(square, board.occupancies[both])) & emptySquares;
 
         while (queenMoves) {
-            int destination = __builtin_ctzl(queenMoves);
+            int destination = __builtin_ctzll(queenMoves);
 
             int capturedPiece = no_piece;
             if ((1ULL << destination) & board.occupancies[side^1]) {

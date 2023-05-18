@@ -14,6 +14,9 @@
 #include "printers.h"
 #include "evaluation.h"
 
+#define CHECKMATE 50000
+#define INF 999999
 void search(ChessBoard &board, int depth, size_t numThreads);
 
+bool kingInCheck(ChessBoard &board);
 #endif

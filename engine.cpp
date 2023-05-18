@@ -223,9 +223,23 @@ void perft(ChessBoard &board, int depth) {
 int main(int argc, char **argv) {
     clearLogs();
 
-    ChessBoard board = createBoardFromFen("r3k2r/8/8/5r2/6R1/8/8/R3K2R w KQkq - 0 1");
+    // uint32_t seqn = htonl(atoi(argv[1]));
+    // printMoveHeader();
+    // printMove(seqn);
+    ChessBoard board = createBoardFromFen("6k1/5p2/1p5p/p4Np1/5q2/Q6P/PPr5/3R3K w - - 1 0");
 
-    search(board, 8, 2);
+    // // Moves moves;
+    // // generateMoves(board, moves);
+
+    // // printMoves(moves);
+    // // printBoard(board);
+    // // perft(board, 5);
+    // // std::cout << kingInCheck(board) << std::endl;
+    search(board, 3, 2);
+
+
+
+    // search(board, 8, 2);
     // printBoard(board);
 
     // parseMoves(board, "e1g1");

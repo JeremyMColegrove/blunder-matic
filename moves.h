@@ -20,7 +20,7 @@
 #define castle_attack_mask_bq 12
 #define castle_piece_mask_bq 14
 
-constexpr int MAX_PLY = 64;
+constexpr int MAX_PLY = 72;
 constexpr U64 NOT_A_FILE = 0xFEFEFEFEFEFEFEFE;
 constexpr U64 NOT_H_FILE = 0x7F7F7F7F7F7F7F7F;
 constexpr int BOARD_SIZE = 64;
@@ -29,7 +29,7 @@ constexpr int FILES = 8;
 constexpr U64 LSB_MASK = 0x1;
 
 struct Moves {
-    uint32_t list[MAX_PLY];
+    uint32_t list[256];
     int count;
 };
 
