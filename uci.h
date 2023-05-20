@@ -8,5 +8,5 @@
 #include "engine.h"
 #include "logger.h"
 #include "moves.h"
-
+#include "search.h"
 #endif

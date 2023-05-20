@@ -1,7 +1,6 @@
 #include "search.h"
 
 
-
 // {hash, depth, value, best_move, cut};
 struct TTEntry {
     U64 hash;
@@ -20,24 +19,23 @@ std::array<std::atomic<TTEntry>, TRANSPOSITION_TABLE_SIZE> transposition_table;
 std::atomic<size_t> searchNodes(0);
 std::atomic<size_t> ttHits(0);
 
-
 int quiescence(ChessBoard &board, int alpha, int beta, std::vector<uint32_t> &pv, int ply) {
 
     searchNodes ++;
 
-    int standPat = evaluate(board);
+    // int standPat = evaluate(board);
 
     // if either king is in check, look at all of the moves
     bool inCheck = (isSquareAttacked(board, white, __builtin_ctzll(board.bitboards[k])) || isSquareAttacked(board, black, __builtin_ctzll(board.bitboards[K])));
 
-    if (!inCheck) {
-        if (standPat >= beta) {
-            return beta;
-        }
-        if (alpha < standPat) {
-            alpha = standPat;
-        }
-    }
+    // if (!inCheck) {
+    //     if (standPat >= beta) {
+    //         return beta;
+    //     }
+    //     if (alpha < standPat) {
+    //         alpha = standPat;
+    //     }
+    // }
 
     Moves moves;
     generateMoves(board, moves); // Assuming you have an optional flag for generating only capture moves in your generateMoves function
@@ -53,6 +51,7 @@ int quiescence(ChessBoard &board, int alpha, int beta, std::vector<uint32_t> &pv
         if (!inCheck && decodeCapturePiece(move) == no_piece)
             continue;
 
+        
         // skip illegal moves
         if (makeMove(board, move) == false) {
             board = boardCopy;
@@ -70,7 +69,7 @@ int quiescence(ChessBoard &board, int alpha, int beta, std::vector<uint32_t> &pv
             bestValue = value;
             bestMove = move;
             pv = child_pv;
-            pv.emplace_back(bestMove);
+            pv.emplace(pv.begin(), bestMove);
         }
 
         if (value >= beta) {
@@ -116,9 +115,14 @@ int negamax(ChessBoard &board, int depth, int alpha, int beta, std::vector<uint3
     
     searchNodes ++;
 
+    // Check for repetition draw.
+    // if (repTable.isRepeated(board.hash)) {
+    //     return -evaluate(board) * 0.25; // Score for a draw
+    // }
+
     if (depth == 0) {
         // switch sides and continue searching quiescence
-        board.white_to_move = !board.white_to_move;
+        // board.white_to_move = !board.white_to_move;
         return quiescence(board, alpha, beta, pv, 1);
     }
 
@@ -159,6 +163,8 @@ int negamax(ChessBoard &board, int depth, int alpha, int beta, std::vector<uint3
             continue;
         }
 
+        // repTable.add(board.hash);
+
         legalMoveFound = true;
         std::vector<uint32_t> tmp_pv;
 
@@ -174,7 +180,6 @@ int negamax(ChessBoard &board, int depth, int alpha, int beta, std::vector<uint3
         }
 
         board = boardCopy;
-
     
         if (value > best_value) {
             best_value = value;
@@ -250,6 +255,7 @@ void search(ChessBoard &board, int depth, size_t numThreads) {
 
         if (start_move < moves.count) {
             std::shared_ptr<ChessBoard> new_board = std::make_shared<ChessBoard>(board);
+
             threads.emplace_back(parallel_search, new_board, depth, -INF, INF, std::ref(results[i]), std::ref(pv_lines[i]), start_move, end_move);
         }
     }
@@ -284,6 +290,4 @@ void search(ChessBoard &board, int depth, size_t numThreads) {
         std::cout << " ";
     }
     std::cout << std::endl;
-
-    // writeToLogFile("Search stats: transposition hits:", ttHits, " nodes:", searchNodes);
 }

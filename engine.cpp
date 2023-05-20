@@ -210,6 +210,5 @@ void perft(ChessBoard &board, int depth) {
     std::cout << std::endl <<  perftNodes << std::endl;
 
     writeToLogFile("PERFT finished");
-
 }
 

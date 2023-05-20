@@ -3,6 +3,12 @@
 int main() {
     clearLogs();
 
+    ChessBoard board_ = createBoardFromFen("k2p4/1p4p1/p7/2n5/8/B7/8/3R2RK w - - 0 1");
+
+    search(board_, 2, 1);
+
+    return 0;
+
     std::string line;
     ChessBoard board;
     while (std::getline(std::cin, line)) {
@@ -43,13 +49,31 @@ int main() {
                 }
                 board = createBoardFromFen(fen);
             }
+
             if (tokens[movesIndex] == "moves") {
                 for (int i = movesIndex + 1; i < tokens.size(); ++i) {
                     // add to repitition array
+                    // addToRepititon(board, parseMove(board, tokens[i]));
                 }
             }
         } else if (tokens[0] == "go") {
-            
+            int depth = -1, movetime = -1, nodes = -1;
+            bool infinite = false;
+
+            for (size_t i = 1; i < tokens.size(); ++i) {
+                if (tokens[i] == "depth") {
+                    depth = std::stoi(tokens[++i]);
+                } else if (tokens[i] == "movetime") {
+                    movetime = std::stoi(tokens[++i]);
+                } else if (tokens[i] == "nodes") {
+                    nodes = std::stoi(tokens[++i]);
+                } else if (tokens[i] == "infinite") {
+                    infinite = true;
+                }
+            }
+
+            // just search with depth for now
+            search(board, depth, 2);
         } else if (tokens[0] == "quit") {
             break;
         } else if (tokens[0] == "setoption") {

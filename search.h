@@ -20,4 +20,7 @@
 void search(ChessBoard &board, int depth, size_t numThreads);
 
 bool kingInCheck(ChessBoard &board);
+
+void addToRepititon(ChessBoard &board, uint32_t move);
+
 #endif

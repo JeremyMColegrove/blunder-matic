@@ -842,7 +842,7 @@ int getPieceOnSquare(ChessBoard &board, int square) {
     return no_piece;
 }
 
-void parseMove(ChessBoard &board, const std::string &move) {
+uint32_t parseMove(ChessBoard &board, const std::string &move) {
     int from = (move[0] - 'a') + (8 - (move[1] - '0')) * 8;
     int to = (move[2] - 'a') + (8 - (move[3] - '0')) * 8;
     
@@ -906,11 +906,7 @@ void parseMove(ChessBoard &board, const std::string &move) {
         doublePush
         );
 
-    ChessBoard copy = board;
-    if (makeMove(board, encodedMove) == false) {
-        writeToLogFile("Tried to parse illegal move:", move);
-        board = copy;
-    }
+    return encodedMove;
 }
 
 
