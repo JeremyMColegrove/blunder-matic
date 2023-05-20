@@ -12,8 +12,8 @@
 
 U64 piece_keys[12][64];
 U64 castling_keys[16];
-U64 en_passant_keys[8];
-U64 side_key[2];
+U64 enpassant_keys[65];
+U64 side_key;
 
 void initOccupancies(ChessBoard &board) {
     board.occupancies[white] = 0ULL;
@@ -53,13 +53,11 @@ void initZobristKeys() {
         castling_keys[cr] = dist(rng);
     }
 
-    for (size_t file = 0; file < 8; ++file) {
-        en_passant_keys[file] = dist(rng);
+    for (size_t square = 0; square < 65; ++square) {
+        enpassant_keys[square] = dist(rng);
     }
 
-    for (size_t i = 0; i < 2; ++i) {
-        side_key[i] = dist(rng);
-    }
+    side_key = dist(rng);
 }
 
 U64 zobristHash(const ChessBoard &board) {
@@ -74,17 +72,13 @@ U64 zobristHash(const ChessBoard &board) {
     }
 
     if (board.white_to_move) {
-        hash ^= side_key[0];
-    } else {
-        hash ^= side_key[1];
+        hash ^= side_key;
     }
 
     hash ^= castling_keys[board.castling_rights];
 
-    if (board.en_passant_square != -1) {
-        int file = board.en_passant_square % 8;
-        hash ^= en_passant_keys[file];
-    }
+    hash ^= enpassant_keys[board.en_passant_square];
+    
 
     return hash;
 }
@@ -149,14 +143,16 @@ ChessBoard createBoardFromFen(const std::string& fen) {
 
     initOccupancies(board);
 
+    board.hash = zobristHash(board);
+
     return board;
 }
 
 
-U64 nodes = 0ULL;
+U64 perftNodes = 0ULL;
 void perftHelper(ChessBoard &board, int depth) {
     if (depth == 0) {
-        nodes ++;
+        perftNodes ++;
         return;
     }
 
@@ -181,7 +177,7 @@ void perftHelper(ChessBoard &board, int depth) {
 void perft(ChessBoard &board, int depth) {
 
     writeToLogFile("Starting PERFT with depth", depth);
-    nodes = 0;
+    perftNodes = 0;
     Moves moves;
     generateMoves(board, moves);
 
@@ -195,11 +191,11 @@ void perft(ChessBoard &board, int depth) {
             continue;
         }
 
-        U64 cummulative_nodes = nodes;
+        U64 cummulative_nodes = perftNodes;
 
         perftHelper(board, depth - 1);
 
-        U64 old_nodes = nodes - cummulative_nodes;
+        U64 old_nodes = perftNodes - cummulative_nodes;
 
         board = boardCopy;
 
@@ -211,60 +207,9 @@ void perft(ChessBoard &board, int depth) {
         std::cout << old_nodes << std::endl;
     }
 
-    std::cout << std::endl <<  nodes << std::endl;
+    std::cout << std::endl <<  perftNodes << std::endl;
 
     writeToLogFile("PERFT finished");
 
 }
 
-
-
-
-int main(int argc, char **argv) {
-    clearLogs();
-
-    // uint32_t seqn = htonl(atoi(argv[1]));
-    // printMoveHeader();
-    // printMove(seqn);
-    ChessBoard board = createBoardFromFen("6k1/5p2/1p5p/p4Np1/5q2/Q6P/PPr5/3R3K w - - 1 0");
-
-    // // Moves moves;
-    // // generateMoves(board, moves);
-
-    // // printMoves(moves);
-    // // printBoard(board);
-    // // perft(board, 5);
-    // // std::cout << kingInCheck(board) << std::endl;
-    search(board, 3, 2);
-
-
-
-    // search(board, 8, 2);
-    // printBoard(board);
-
-    // parseMoves(board, "e1g1");
-
-    // Moves moves;
-    // generateMoves(board, moves);
-
-    // printBoard(board);
-
-    // printMoves(moves);
-
-    // if (argc > 2) {
-        
-    //     // set the position
-    //     ChessBoard board = createBoardFromFen(argv[2]);
-
-    //     int depth = atoi(argv[1]);
-
-    //     if (argc > 3) {
-    //         parseMoves(board, argv[3]);
-    //     }
-
-    //     perft(board, depth);
-
-    // } 
-
-    return 0;
-}

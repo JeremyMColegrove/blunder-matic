@@ -13,6 +13,7 @@
 #include "logger.h"
 #include "printers.h"
 #include "evaluation.h"
+#include <atomic>
 
 #define CHECKMATE 50000
 #define INF 999999

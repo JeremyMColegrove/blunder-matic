@@ -2,43 +2,55 @@
 
 
 
-
+// {hash, depth, value, best_move, cut};
 struct TTEntry {
-    int depth;
-    int score;
     U64 hash;
-    uint32_t best_move;
+    int depth;
+    int value;
+    uint32_t move;
+    bool cut;
 };
 
-std::mutex tt_mtx;
+
 // Declare the fixed size transposition table as an array
 constexpr size_t TRANSPOSITION_TABLE_SIZE = 1 << 20; // 1 million entries
-std::array<TTEntry, TRANSPOSITION_TABLE_SIZE> transposition_table;
+std::array<std::atomic<TTEntry>, TRANSPOSITION_TABLE_SIZE> transposition_table;
+
+// create atomic variables for the search
+std::atomic<size_t> searchNodes(0);
+std::atomic<size_t> ttHits(0);
 
 
+int quiescence(ChessBoard &board, int alpha, int beta, std::vector<uint32_t> &pv, int ply) {
 
-
-int quiescence(ChessBoard &board, int alpha, int beta) {
-
+    searchNodes ++;
 
     int standPat = evaluate(board);
 
-    if (standPat >= beta) {
-        return beta;
-    }
-    if (alpha < standPat) {
-        alpha = standPat;
+    // if either king is in check, look at all of the moves
+    bool inCheck = (isSquareAttacked(board, white, __builtin_ctzll(board.bitboards[k])) || isSquareAttacked(board, black, __builtin_ctzll(board.bitboards[K])));
+
+    if (!inCheck) {
+        if (standPat >= beta) {
+            return beta;
+        }
+        if (alpha < standPat) {
+            alpha = standPat;
+        }
     }
 
     Moves moves;
     generateMoves(board, moves); // Assuming you have an optional flag for generating only capture moves in your generateMoves function
 
     ChessBoard boardCopy = board;
+    int bestValue = -INF;
+    uint32_t bestMove;
+    bool legalMoveFound = false;
     for (size_t i = 0; i < moves.count; ++i) {
         uint32_t move = moves.list[i];
 
         // skip non-captures
-        if (decodeCapturePiece(move) == no_piece)
+        if (!inCheck && decodeCapturePiece(move) == no_piece)
             continue;
 
         // skip illegal moves
@@ -47,9 +59,19 @@ int quiescence(ChessBoard &board, int alpha, int beta) {
             continue;
         }
 
-        int value = -quiescence(board, -beta, -alpha);
+        std::vector<uint32_t> child_pv;
+        int value = -quiescence(board, -beta, -alpha, child_pv, ply + 1);
+
+        legalMoveFound = true;
 
         board = boardCopy;
+
+        if (value > bestValue) {
+            bestValue = value;
+            bestMove = move;
+            pv = child_pv;
+            pv.emplace_back(bestMove);
+        }
 
         if (value >= beta) {
             return beta;
@@ -58,37 +80,63 @@ int quiescence(ChessBoard &board, int alpha, int beta) {
             alpha = value;
         }
     }
-    return alpha;
+
+    if (!legalMoveFound) {
+        if (inCheck) {
+            return -CHECKMATE + ply;
+        } else {
+            return 0;
+        }
+    }
+
+    return bestValue;
 }
 
 bool kingInCheck(ChessBoard &board) {
     return isSquareAttacked(board, board.white_to_move?black:white, __builtin_ctzll(board.bitboards[board.white_to_move?K:k]));
 }
 
+// Add an entry to the transposition table.
+void addTTEntry(U64 hash, int depth, int value, uint32_t best_move, bool cut) {
+    TTEntry entry = {hash, depth, value, best_move, cut};
+    transposition_table[hash % TRANSPOSITION_TABLE_SIZE].store(entry, std::memory_order_relaxed);
+}
+
+// Look up an entry in the transposition table.
+std::optional<TTEntry> probeTT(U64 hash) {
+    TTEntry entry = transposition_table[hash % TRANSPOSITION_TABLE_SIZE].load(std::memory_order_relaxed);
+    if (entry.hash == hash) {
+        return entry;
+    } else {
+        return std::nullopt;
+    }
+}
+
 int negamax(ChessBoard &board, int depth, int alpha, int beta, std::vector<uint32_t> &pv, bool is_pv, int moveStartIndex, int moveEndIndex) {
+    
+    searchNodes ++;
+
     if (depth == 0) {
-        return quiescence(board, alpha, beta);
+        // switch sides and continue searching quiescence
+        board.white_to_move = !board.white_to_move;
+        return quiescence(board, alpha, beta, pv, 1);
     }
 
-    // U64 hash = zobristHash(board);
-    // // Transposition table lookup
-    // // When you read from the transposition table, also use a modulo operation
-    // {
-    //     std::lock_guard<std::mutex> lock{tt_mtx};
-    //     TTEntry &entry = transposition_table[hash % TRANSPOSITION_TABLE_SIZE];
-    //     if (entry.hash == hash) {
-    //         if (entry.depth >= depth) {
-    //             if (entry.score >= beta) {
-    //                 if (entry.best_move != 0xFFFFFFFF) {
-    //                     pv.clear();
-    //                     pv.push_back(entry.best_move);
-    //                 }
-    //                 return entry.score;
-    //             }
-    //             alpha = std::max(alpha, entry.score);
-    //         }
-    //     }
-    // }
+    // thread friendly transposition table lookup
+    std::optional<TTEntry> opt_entry = probeTT(board.hash);
+    if (opt_entry.has_value() && opt_entry->depth >= depth) {
+        if (opt_entry->cut) {
+            if (opt_entry->value <= alpha) {
+                ttHits ++;
+                return alpha;
+            }
+        } else {
+            if (opt_entry->value >= beta) {
+                ttHits ++;
+                return beta;
+            }
+        }
+    }
 
     bool check = kingInCheck(board);
 
@@ -101,7 +149,7 @@ int negamax(ChessBoard &board, int depth, int alpha, int beta, std::vector<uint3
     std::vector<uint32_t> child_pv;
 
     ChessBoard boardCopy = board;
-    bool legalMoveFound = false;
+    bool legalMoveFound = false, cut = false;
     for (size_t i = moveStartIndex; i < moves.count && i < moveEndIndex; ++i) {
         uint32_t move = moves.list[i];
 
@@ -127,35 +175,37 @@ int negamax(ChessBoard &board, int depth, int alpha, int beta, std::vector<uint3
 
         board = boardCopy;
 
+    
         if (value > best_value) {
             best_value = value;
             child_pv = tmp_pv;
             child_pv.emplace(child_pv.begin(), move);
+
+            if (value > alpha) {
+                cut = false;
+            }
         }
 
         alpha = std::max(alpha, value);
         if (alpha >= beta) {
+            cut = true;
             break;
-        }
+        }   
     }
+
+    
 
     if (!legalMoveFound) {
         if (check) {
-            if (board.white_to_move &&  __builtin_ctzll(board.bitboards[q])==g6) {
-                printBoard(board);
-            }
             return -CHECKMATE - depth;
         } else {
             return 0;
         }
     }
 
-    // When you store a value in the transposition table, use a modulo operation
-    // if (!child_pv.empty()) {
-    //     std::lock_guard<std::mutex> lock{tt_mtx};
-    //     uint32_t best_move = (child_pv.empty()) ? 0xFFFFFFFF : child_pv[0];
-    //     transposition_table[hash % TRANSPOSITION_TABLE_SIZE] = {depth, best_value, hash, best_move};
-    // }
+    if (!child_pv.empty()) {
+        addTTEntry(board.hash, depth, best_value, child_pv[0], cut);
+    }
 
     pv = child_pv;
     return best_value;
@@ -165,11 +215,17 @@ void parallel_search(std::shared_ptr<ChessBoard> board, int depth, int alpha, in
     result = negamax(*board, depth, alpha, beta, pv, true, moveStartIndex, moveEndIndex);
 }
 
+
+
 void search(ChessBoard &board, int depth, size_t numThreads) {
 
     writeToLogFile("Searching depth", depth, "on", numThreads, "threads");
 
+    // reset all counters
+    searchNodes = 0, ttHits = 0;
+
     Moves moves;
+
     generateMoves(board, moves);
 
     std::vector<std::thread> threads;
@@ -212,15 +268,10 @@ void search(ChessBoard &board, int depth, size_t numThreads) {
     }
 
 
-    if (best_score < -CHECKMATE + 2000) {
-        std::cout << "info score mate " << (best_score + CHECKMATE) << " depth " << depth << " pv ";
-        // printf("info transpositions %d ttp: %.4f score mate %d depth %d nodes %d q_nodes %d time %ld pv ", cache_hit, ((float)cache_hit)/nodes, -(score + CHECKMATE) / 2 - 1, depth + 1, nodes, q_nodes, elapsed);
-    } else if (best_score > CHECKMATE - 2000) {
-        std::cout << "info score mate " << -(CHECKMATE - best_score) << " depth " << depth << " pv ";
-
-        // printf("info transpositions %d ttp: %.4f score mate %d depth %d nodes %d q_nodes %d time %ld pv ", cache_hit,((float)cache_hit)/nodes, (CHECKMATE - score) / 2 + 1, depth + 1, nodes, q_nodes, elapsed);
+    if (abs(best_score) > CHECKMATE - 2000) {
+        std::cout << "info score mate " << (best_pv.size() / 2) + 1 << " depth " << depth << " nodes " << searchNodes << " pv ";
     } else {
-        std::cout << "info score cp " << best_score << " depth " << depth << " pv ";
+        std::cout << "info score cp " << best_score << " depth " << depth << " nodes " << searchNodes << " pv ";
     } 
 
 
@@ -233,4 +284,6 @@ void search(ChessBoard &board, int depth, size_t numThreads) {
         std::cout << " ";
     }
     std::cout << std::endl;
+
+    // writeToLogFile("Search stats: transposition hits:", ttHits, " nodes:", searchNodes);
 }

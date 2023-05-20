@@ -46,6 +46,9 @@ bool makeMove(ChessBoard &board, uint32_t move);
 
 void parseMoves(ChessBoard &board, const std::string &moves);
 
+void parseMove(ChessBoard &board, const std::string &move);
+
+
 inline int getOpponentPiece(ChessBoard &board, int square);
 
 #endif

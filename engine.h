@@ -11,7 +11,10 @@
 
 typedef unsigned long long U64;
 
-
+extern U64 piece_keys[12][64];
+extern U64 side_key;
+extern U64 enpassant_keys[65];
+extern U64 castling_keys[16];
 
 using namespace std;
 
@@ -46,6 +49,7 @@ enum {white, black, both};
 struct ChessBoard {
     U64 bitboards[12];
     U64 occupancies[3];
+    U64 hash; // hash of the board position
     bool white_to_move;
     uint8_t castling_rights; // 1 = white kingside, 2 = white queenside, 4 = black kingside, 8 = black queenside
     int en_passant_square;

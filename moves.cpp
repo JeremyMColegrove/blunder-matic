@@ -713,41 +713,52 @@ bool makeMove(ChessBoard &board, uint32_t move) {
 
     // Clear the moving piece from the origin square
     popBit(board.bitboards[piece], from_square);
-
+    board.hash ^= piece_keys[piece][from_square];
 
     // Remove the captured piece if any
     if (captured_piece != no_piece) {
         popBit(board.bitboards[captured_piece], to_square);
+        board.hash ^= piece_keys[captured_piece][to_square];
     }
 
     
     // Handle special move flags (e.g., promotion, en passant, castling)
     if (promotion_piece != no_piece) {
         setBit(board.bitboards[promotion_piece], to_square);
+        board.hash ^= piece_keys[promotion_piece][to_square];
     } else if (enpassant) {
         // En passant special move
         if (board.white_to_move) {
             popBit(board.bitboards[p], to_square + 8);
+            board.hash ^= piece_keys[p][to_square + 8];
         } else {
             popBit(board.bitboards[P], to_square - 8);
+            board.hash ^= piece_keys[P][to_square - 8];
+
         }
         // Set the moving piece in the destination square
         setBit(board.bitboards[piece], to_square);
+        board.hash ^= piece_keys[piece][to_square];
+
     } else {
         // Set the moving piece in the destination square
         setBit(board.bitboards[piece], to_square);
+        board.hash ^= piece_keys[piece][to_square];
     }
 
+    board.hash ^= enpassant_keys[board.en_passant_square];
     // enpassant
     if (double_push) {
         if (board.white_to_move) {
             board.en_passant_square = to_square + 8;
+
         } else {
             board.en_passant_square = to_square - 8;
         }
     } else {
         board.en_passant_square = no_square;
     }
+    board.hash ^= enpassant_keys[board.en_passant_square];
 
     // Update castling rights
     if (castling) {
@@ -757,30 +768,41 @@ bool makeMove(ChessBoard &board, uint32_t move) {
                         return false;
                     popBit(board.bitboards[R], h1);
                     setBit(board.bitboards[R], f1);
+                    board.hash ^= piece_keys[R][h1];
+                    board.hash ^= piece_keys[R][f1];
                     break;
                 case c1:
                     if (isSquareAttacked(board, black, c1) || isSquareAttacked(board, black, d1) || isSquareAttacked(board, black, e1)) 
                         return false;
                     popBit(board.bitboards[R], a1);
                     setBit(board.bitboards[R], d1);
+                    board.hash ^= piece_keys[R][a1];
+                    board.hash ^= piece_keys[R][d1];
                     break;
                 case g8:
                     if (isSquareAttacked(board, white, f8) || isSquareAttacked(board, white, g8) || isSquareAttacked(board, white, e8)) 
                         return false;
                     popBit(board.bitboards[r], h8);
                     setBit(board.bitboards[r], f8);
+                    board.hash ^= piece_keys[r][h8];
+                    board.hash ^= piece_keys[r][f8];
                     break;
                 case c8:
                     if (isSquareAttacked(board, white, c8) || isSquareAttacked(board, white, d8) || isSquareAttacked(board, white, e8)) 
                         return false;
                     popBit(board.bitboards[r], a8);
                     setBit(board.bitboards[r], d8);
+                    board.hash ^= piece_keys[r][a8];
+                    board.hash ^= piece_keys[r][d8];
                     break;
             }
         }
 
+    board.hash ^= castling_keys[board.castling_rights];
     board.castling_rights &= castling_rights[from_square];
     board.castling_rights &= castling_rights[to_square];
+    board.hash ^= castling_keys[board.castling_rights];
+
 
     board.occupancies[white] = 0;
     board.occupancies[black] = 0;
@@ -796,7 +818,10 @@ bool makeMove(ChessBoard &board, uint32_t move) {
     board.occupancies[both] = (board.occupancies[white] | board.occupancies[black]);
 
     // Swap side to move
+    board.hash ^= side_key;
     board.white_to_move = !board.white_to_move;
+    
+    // assert(zobristHash(board) == board.hash);
 
     // make sure that king is not exposed into a check
     int kingSquare = __builtin_ctzll(board.white_to_move?board.bitboards[k]:board.bitboards[K]);
