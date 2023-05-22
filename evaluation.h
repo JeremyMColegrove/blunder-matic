@@ -5,9 +5,10 @@
 #include "utils.h"
 #include "logger.h"
 
-
 #define flip(sq) ((sq)^56)
 
+int getPieceSquareValue(int piece, int square);
+int getPieceValue(int piece);
 int evaluate(ChessBoard &board);
 
 #endif

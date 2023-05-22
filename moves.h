@@ -3,7 +3,7 @@
 
 #include "engine.h"
 #include "utils.h"
-
+#include "evaluation.h"
 
 #define not_a_file 18374403900871474942ULL
 #define not_h_file 9187201950435737471ULL
@@ -49,5 +49,7 @@ void parseMoves(ChessBoard &board, const std::string &moves);
 uint32_t parseMove(ChessBoard &board, const std::string &move);
 
 inline int getOpponentPiece(ChessBoard &board, int square);
+
+void sortMoves(std::vector<uint32_t> &moves);
 
 #endif

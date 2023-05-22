@@ -3,11 +3,14 @@
 int main() {
     clearLogs();
 
-    ChessBoard board_ = createBoardFromFen("k2p4/1p4p1/p7/2n5/8/B7/8/3R2RK w - - 0 1");
+    // ChessBoard board_ = createBoardFromFen("k2p4/1p4p1/p7/2n5/8/B7/8/3R2RK w - - 0 1");
+    // ChessBoard board_ = createBoardFromFen("8/k2r4/p7/2b1Bp2/P3p3/qp4R1/4QP2/1K6 b - - 0 1");
 
-    search(board_, 2, 1);
+    // ChessBoard board_ = createBoardFromFen(STARTING_FEN);
+    // search(board_, 12, 2000, 2);
+    // // std::cout << evaluate(board_) << std::endl;
 
-    return 0;
+    // return 0;
 
     std::string line;
     ChessBoard board;
@@ -26,7 +29,7 @@ int main() {
 
             // print the available options here
             // for example: "option name Hash type spin default 1 min 1 max 1024"
-
+            std::cout << "option name Threads type spin default 2 min 1 max 32" << std::endl;
             std::cout << "uciok" << std::endl;
         } else if (tokens[0] == "isready") {
             std::cout << "readyok" << std::endl;
@@ -52,8 +55,8 @@ int main() {
 
             if (tokens[movesIndex] == "moves") {
                 for (int i = movesIndex + 1; i < tokens.size(); ++i) {
-                    // add to repitition array
-                    // addToRepititon(board, parseMove(board, tokens[i]));
+                    // Make the move on the board
+                    makeMove(board, parseMove(board, tokens[i]));
                 }
             }
         } else if (tokens[0] == "go") {
@@ -73,7 +76,7 @@ int main() {
             }
 
             // just search with depth for now
-            search(board, depth, 2);
+            search(board, depth, movetime, 2);
         } else if (tokens[0] == "quit") {
             break;
         } else if (tokens[0] == "setoption") {

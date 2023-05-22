@@ -726,15 +726,17 @@ bool makeMove(ChessBoard &board, uint32_t move) {
     if (promotion_piece != no_piece) {
         setBit(board.bitboards[promotion_piece], to_square);
         board.hash ^= piece_keys[promotion_piece][to_square];
+    
+
     } else if (enpassant) {
         // En passant special move
         if (board.white_to_move) {
             popBit(board.bitboards[p], to_square + 8);
             board.hash ^= piece_keys[p][to_square + 8];
+
         } else {
             popBit(board.bitboards[P], to_square - 8);
             board.hash ^= piece_keys[P][to_square - 8];
-
         }
         // Set the moving piece in the destination square
         setBit(board.bitboards[piece], to_square);
@@ -820,8 +822,7 @@ bool makeMove(ChessBoard &board, uint32_t move) {
     // Swap side to move
     board.hash ^= side_key;
     board.white_to_move = !board.white_to_move;
-    
-    // assert(zobristHash(board) == board.hash);
+
 
     // make sure that king is not exposed into a check
     int kingSquare = __builtin_ctzll(board.white_to_move?board.bitboards[k]:board.bitboards[K]);

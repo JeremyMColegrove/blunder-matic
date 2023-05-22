@@ -25,7 +25,9 @@ std::string squaretoCoordinate(int square) {
     return result;
 }
 
-void printMove(uint32_t move) {
+
+
+void printMoveDetailed(uint32_t move) {
     int from_square = decodeMoveFrom(move);
     int to_square = decodeMoveTo(move);
     int piece = decodePieceType(move);
@@ -48,16 +50,31 @@ void printMove(uint32_t move) {
         double_push);
 }
 
-void printMoves(Moves &moves) {
+void printMovesDetailed(Moves &moves) {
     printMoveHeader();
 
     for (int i=0; i<moves.count; i++) {
-        printMove(moves.list[i]);
+        printMoveDetailed(moves.list[i]);
     }
 
     std::cout << "Moves: " << moves.count << std::endl;
 }
 
+void printMove(uint32_t move) {
+    std::cout << squaretoCoordinate(decodeMoveFrom(move));
+    std::cout << squaretoCoordinate(decodeMoveTo(move));
+    int promotion = decodePromotionPiece(move);
+    if (promotion != no_piece)
+        std::cout << ascii_pieces[promotion];
+}
+
+void printPVLine(std::vector<uint32_t> pv) {
+    for (const auto &move : pv) {
+        printMove(move);
+        std::cout << " ";
+    }
+    std::cout << std::endl;
+}
 // Function to print the chess board
 void printBoard(ChessBoard& board) {
     std::array<std::string, 12> pieceSymbols = {

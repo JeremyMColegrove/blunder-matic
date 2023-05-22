@@ -19,23 +19,27 @@ std::array<std::atomic<TTEntry>, TRANSPOSITION_TABLE_SIZE> transposition_table;
 std::atomic<size_t> searchNodes(0);
 std::atomic<size_t> ttHits(0);
 
+std::atomic<size_t> movetime(0);
+std::atomic<bool> killSwitch(false);
+std::chrono::time_point<std::chrono::steady_clock>  searchStart;
+
 int quiescence(ChessBoard &board, int alpha, int beta, std::vector<uint32_t> &pv, int ply) {
 
     searchNodes ++;
 
-    // int standPat = evaluate(board);
-
     // if either king is in check, look at all of the moves
     bool inCheck = (isSquareAttacked(board, white, __builtin_ctzll(board.bitboards[k])) || isSquareAttacked(board, black, __builtin_ctzll(board.bitboards[K])));
 
-    // if (!inCheck) {
-    //     if (standPat >= beta) {
-    //         return beta;
-    //     }
-    //     if (alpha < standPat) {
-    //         alpha = standPat;
-    //     }
-    // }
+    if (!inCheck) {
+        int standPat = evaluate(board);
+
+        if (standPat >= beta) {
+            return beta;
+        }
+        if (alpha < standPat) {
+            alpha = standPat;
+        }
+    }
 
     Moves moves;
     generateMoves(board, moves); // Assuming you have an optional flag for generating only capture moves in your generateMoves function
@@ -115,15 +119,15 @@ int negamax(ChessBoard &board, int depth, int alpha, int beta, std::vector<uint3
     
     searchNodes ++;
 
-    // Check for repetition draw.
-    // if (repTable.isRepeated(board.hash)) {
-    //     return -evaluate(board) * 0.25; // Score for a draw
-    // }
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - searchStart).count();
+
+    if (elapsed > movetime) {
+        killSwitch = true;
+        return evaluate(board);
+    }
 
     if (depth == 0) {
-        // switch sides and continue searching quiescence
-        // board.white_to_move = !board.white_to_move;
-        return quiescence(board, alpha, beta, pv, 1);
+        return evaluate(board);//quiescence(board, alpha, beta, pv, 1);
     }
 
     // thread friendly transposition table lookup
@@ -163,8 +167,6 @@ int negamax(ChessBoard &board, int depth, int alpha, int beta, std::vector<uint3
             continue;
         }
 
-        // repTable.add(board.hash);
-
         legalMoveFound = true;
         std::vector<uint32_t> tmp_pv;
 
@@ -198,8 +200,6 @@ int negamax(ChessBoard &board, int depth, int alpha, int beta, std::vector<uint3
         }   
     }
 
-    
-
     if (!legalMoveFound) {
         if (check) {
             return -CHECKMATE - depth;
@@ -221,73 +221,75 @@ void parallel_search(std::shared_ptr<ChessBoard> board, int depth, int alpha, in
 }
 
 
-
-void search(ChessBoard &board, int depth, size_t numThreads) {
+void search(ChessBoard &board, int depth, size_t movetime_, size_t numThreads) {
 
     writeToLogFile("Searching depth", depth, "on", numThreads, "threads");
 
-    // reset all counters
-    searchNodes = 0, ttHits = 0;
+    movetime = movetime_;
 
     Moves moves;
 
     generateMoves(board, moves);
 
-    std::vector<std::thread> threads;
-    std::vector<int> results(numThreads, 0);
-    std::vector<std::vector<uint32_t>> pv_lines(numThreads);
-   
     int best_score = -INF;
-    std::vector<uint32_t> best_pv;
     std::mutex search_mtx;
 
     int moves_per_thread = moves.count / numThreads;
     int remaining_moves = moves.count % numThreads;
+    std::vector<uint32_t> best_pv;
 
-    for (int i = 0; i < numThreads; ++i) {
-        int start_move = i * moves_per_thread;
-        int end_move = (i + 1) * moves_per_thread;
+    searchStart = std::chrono::steady_clock::now();
 
-        if (i == numThreads - 1) {
-            // Assign remaining moves to the last thread
-            end_move += remaining_moves;
-        }
+    killSwitch = false;
 
-        if (start_move < moves.count) {
+    for (int currDepth = 1; currDepth <= depth; currDepth ++) {
+
+        // reset all counters
+        searchNodes = 0, ttHits = 0;
+
+        std::vector<std::thread> threads;
+        std::vector<int> results(numThreads, 0);
+        std::vector<std::vector<uint32_t>> pv_lines(numThreads);
+
+        for (int i = 0; i < numThreads; ++i) {
+            int start_move = i * moves_per_thread;
+            int end_move = (i + 1) * moves_per_thread;
+
+            if (i == numThreads - 1) {
+                // Assign remaining moves to the last thread
+                end_move += remaining_moves;
+            }
+
             std::shared_ptr<ChessBoard> new_board = std::make_shared<ChessBoard>(board);
-
-            threads.emplace_back(parallel_search, new_board, depth, -INF, INF, std::ref(results[i]), std::ref(pv_lines[i]), start_move, end_move);
+            threads.emplace_back(parallel_search, new_board, currDepth, -INF, INF, std::ref(results[i]), std::ref(pv_lines[i]), start_move, end_move);
         }
-    }
 
+        for (size_t i = 0; i < threads.size(); ++i) {
+            threads[i].join();
 
-    for (size_t i = 0; i < threads.size(); ++i) {
-        threads[i].join();
-        writeToLogFile("Thread", i, "finished");
-
-        std::unique_lock<std::mutex> lock(search_mtx);
-        if (results[i] > best_score) {
-            best_score = results[i];
-            best_pv = pv_lines[i];
+            std::unique_lock<std::mutex> lock(search_mtx);
+            if (results[i] > best_score) {
+                best_score = results[i];
+                best_pv = pv_lines[i];
+            }
+            lock.unlock();
         }
-        lock.unlock();
+
+        if (killSwitch) break;
+
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - searchStart).count();
+
+        if (abs(best_score) > CHECKMATE - 2000) {
+            std::cout << "info score mate " << (best_pv.size() / 2) + 1 << " depth " << currDepth << " nodes " << searchNodes << " time " << elapsed << " pv ";
+        } else {
+            std::cout << "info score cp " << best_score << " depth " << currDepth << " nodes " << searchNodes << " time " << elapsed << " pv ";
+        } 
+
+        printPVLine(best_pv);
     }
 
-
-    if (abs(best_score) > CHECKMATE - 2000) {
-        std::cout << "info score mate " << (best_pv.size() / 2) + 1 << " depth " << depth << " nodes " << searchNodes << " pv ";
-    } else {
-        std::cout << "info score cp " << best_score << " depth " << depth << " nodes " << searchNodes << " pv ";
-    } 
-
-
-    for (const auto &move : best_pv) {
-        std::cout << squaretoCoordinate(decodeMoveFrom(move));
-        std::cout << squaretoCoordinate(decodeMoveTo(move));
-        int promotion = decodePromotionPiece(move);
-        if (promotion != no_piece)
-            std::cout << ascii_pieces[promotion];
-        std::cout << " ";
-    }
+    // finally at the end, print the move
+    std::cout << "bestmove ";
+    printMove(best_pv[0]);
     std::cout << std::endl;
 }
